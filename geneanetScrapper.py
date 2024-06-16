@@ -1,16 +1,6 @@
 import os
-import selenium
 import getpass
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver.common.by import By
+from seleniumbase import Driver
 
 
 class GeneanetScraper:
@@ -22,17 +12,10 @@ class GeneanetScraper:
 
     def _start_browser(self):
         print("Start browser...")
-        options = webdriver.FirefoxOptions()
-        # options.add_argument("-headless")  # Here
-
-        # Set Firefox profile preferences using options
-        options.set_preference("network.cookie.cookieBehavior", 2)
-        if os.name == 'nt':
-            driverService = Service(self.path + "//driver//geckodriver.exe")
-            self.driver = webdriver.Firefox(
-                service=driverService, options=options)
-        else:
-            self.driver = webdriver.Firefox(options=options)
+        chrome_driver_path = os.path.join(
+            self.path, "driver", "chromedriver.exe")
+        self.driver = Driver(browser="firefox",
+                             uc=True, headless=False)
 
     def find_button_and_click(driver, xpath):
         """
@@ -61,20 +44,23 @@ class GeneanetScraper:
     def connect(self, id, password):
         self._start_browser()
 
-        self.driver.get("https://www.geneanet.org/connexion/")
+        self.driver.get(
+            "https://www.geneanet.org/connexion/")
 
         # Wait for the page to load
-        xpath_id_field = '/html/body/div[1]/div/div[5]/div/div/div[1]/div[1]/div[1]/form/input[1]'
-        xpath_pwd_field = '/html/body/div[1]/div/div[5]/div/div/div[1]/div[1]/div[1]/form/div[1]/input'
-        xpath_connect_button = '/html/body/div[1]/div/div[5]/div/div/div[1]/div[1]/div[1]/form/div[2]/div[2]/button'
+        xpath_id_field = '#_username'
+        # xpath_pwd_field = '/html/body/div[1]/div/div[5]/div/div/div[1]/div[1]/div[1]/form/div[1]/input'
+        xpath_pwd_field = '#_password'
+        # xpath_connect_button = '/html/body/div[1]/div/div[5]/div/div/div[1]/div[1]/div[1]/form/div[2]/div[2]/button'
+        xpath_connect_button = '//*[@id="_submit"]'
         xpath_deny_cookie_button = '/html/body/div[2]/div[3]/button[2]'
-        WebDriverWait(self.driver, 20).until(
-            EC.visibility_of_element_located((By.XPATH, xpath_id_field)))
-        WebDriverWait(self.driver, 20).until(
-            EC.visibility_of_element_located((By.XPATH, xpath_deny_cookie_button)))
+        self.driver.wait_for_element_visible(
+            xpath_id_field, by="xpath", timeout=20)
+        self.driver.wait_for_element_visible(
+            xpath_deny_cookie_button, by="xpath", timeout=20)
 
         deny_cookie_button = self.driver.find_element(
-            By.XPATH, '/html/body/div[2]/div[3]/button[2]')
+            xpath_deny_cookie_button)
         # for a unknown reason we need to click 3 times
         # to makes the button accept the request
         deny_cookie_button.click()
@@ -82,16 +68,16 @@ class GeneanetScraper:
         deny_cookie_button.click()
 
         # Enter the id
-        id_field = self.driver.find_element(By.XPATH, xpath_id_field)
+        id_field = self.driver.find_element(xpath_id_field)
         id_field.send_keys(id)
 
         # Enter the password
-        pwd_field = self.driver.find_element(By.XPATH, xpath_pwd_field)
+        pwd_field = self.driver.find_element(xpath_pwd_field)
         pwd_field.send_keys(password)
 
         # Click the connect button
         connect_button = self.driver.find_element(
-            By.XPATH, xpath_connect_button)
+            xpath_connect_button)
         connect_button.click()
 
         # Wait for the page to load
