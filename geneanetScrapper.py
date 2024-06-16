@@ -1,5 +1,6 @@
 import os
 import selenium
+import getpass
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
@@ -102,5 +103,8 @@ class GeneanetScraper:
 
 
 # Usage
+
 scraper = GeneanetScraper()
-scraper.connect('your_id', 'your_password')
+login = input("Please enter your login to geneanet :")
+password = getpass.getpass("Please enter your password for geneanet : ")
+scraper.connect(login, password)
