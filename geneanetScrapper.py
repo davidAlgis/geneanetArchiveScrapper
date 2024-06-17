@@ -59,17 +59,37 @@ class GeneanetScraper:
         connect_button.click()
 
         # Wait for the page to load
-        css_show_my_tree = '.drop-user'
-
+        css_family_name = 'div.row:nth-child(5) > div:nth-child(1) > input:nth-child(1)'
         self.driver.wait_for_element_visible(
-            css_deny_cookie_button, timeout=20)
+            css_family_name, timeout=20)
         self.is_connected = True
         print("Has success to connect to Geneanet.net")
+        return True
+
+    def searchFamilyName(self, name):
+        css_family_name = 'div.row:nth-child(5) > div:nth-child(1) > input:nth-child(1)'
+        family_name_field = self.driver.find_element(css_family_name)
+        family_name_field.send_keys(name)
+
+        css_search_button = "button.button"
+        search_button = self.driver.find_element(css_search_button)
+        search_button.click()
+
+        css_archive_toggle = "#categories_1-archives"
+        self.driver.wait_for_element_visible(
+            css_archive_toggle, timeout=20)
+
+        archive_toggle = self.driver.find_element(css_archive_toggle)
+        archive_toggle.click()
+
+        css_civil_state = "div.checked:nth-child(1) > div:nth-child(2) > label:nth-child(1)"
+        self.driver.wait_for_element_visible(
+            css_civil_state, timeout=20)
 
 
 # Usage
-
 scraper = GeneanetScraper()
 # login = input("Please enter your login to geneanet :")
 # password = getpass.getpass("Please enter your password for geneanet : ")
 scraper.connect("david.algis@tutamail.com", "mdpTest67")
+scraper.searchFamilyName("Algis")
