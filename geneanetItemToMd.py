@@ -1,21 +1,21 @@
 import os
 
-# global variable for the path to the markdown files
-pathToMd = "/path/to/markdown/files"
-# global variable for the path to the template file
-filePathToTemplate = "/path/to/template.md"
-
 
 class GeneanetItemToMd:
-    def __init__(self, last_name, first_name):
+    def __init__(self, last_name, first_name, path_to_md, file_path_to_template):
+
         self.last_name = last_name
         self.first_name = first_name
         self.filename = f"{last_name}{first_name}.md"
-        self.filepath = os.path.join(pathToMd, self.filename)
+        self.filepath = os.path.join(path_to_md, self.filename)
+
+        # check if output directory exists, and if not, create it
+        if not os.path.isdir(path_to_md):
+            os.makedirs(path_to_md)
 
         # check if file exists, and if not, create it and copy the template into it
         if not os.path.isfile(self.filepath):
-            with open(filePathToTemplate, "r") as template_file:
+            with open(file_path_to_template, "r") as template_file:
                 template_content = template_file.read()
 
             with open(self.filepath, "w") as f:
