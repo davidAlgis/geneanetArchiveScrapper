@@ -2,9 +2,8 @@ import os
 import getpass
 from seleniumbase import Driver
 from geneanetItemToMd import GeneanetItemToMd
-import argparse
 
-class GeneanetScraper:
+class GeneanetScrapper:
     def __init__(self, headless=True):
         self.path, filename = os.path.split(os.path.realpath(__file__))
         self.headless = headless
@@ -88,19 +87,5 @@ class GeneanetScraper:
             css_civil_state, timeout=20)
 
 
-# Usage
-# scraper = GeneanetScraper()
-# login = input("Please enter your login to geneanet :")
-# password = getpass.getpass("Please enter your password for geneanet : ")
-# scraper.connect("david.algis@tutamail.com", "mdpTest67")
-# scraper.searchFamilyName("Algis")import argparse
 
-parser = argparse.ArgumentParser(description='Generate markdown files from genealogy data.')
-parser.add_argument('-d', '--directory', type=str, default='Individus',
-                    help='the directory where the markdown files will be generated (default: Individus)')
-parser.add_argument('-t', '--template', type=str, default='template.md',
-                    help='the path to the template file for the markdown files (default: template.md)')
-args = parser.parse_args()
 
-# create a new instance of the GeneanetItemToMd class with the command-line arguments
-item = GeneanetItemToMd("Dupont", "Jean", path_to_md=args.directory, file_path_to_template=args.template)
