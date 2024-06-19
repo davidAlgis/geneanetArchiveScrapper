@@ -90,55 +90,59 @@ class GeneanetScrapper:
 
     def loopOnPagesSearch(self):
         totalPageNbr = self.getCurrentTotalPageNbr()
-        #Add tqdm to this loop
+        # Add tqdm to this loop
+        maxNbrItemInPage = 100
         for i in range(totalPageNbr):
+            for j in range(maxNbrItemInPage):
+                css_line_j = f"a.ligne-resultat:nth-child({j})"
+                if self.driver.is_element_present(css_line_j):
+                    if (self.isArchiveLine(css_line_j)):
+                        self.getNameLine(css_line_j)
             self.clickOnNextPage()
-            # if(i>3):
-                # return
-            #TODO look for each page
 
+    def isArchiveLine(self, css_line):
+        css_line_info = css_line + \
+            " > div:nth-child(2) > div:nth-child(1)"
+        typeLine = ""
+        if self.driver.is_element_present(css_line_info):
+            typeLine = self.driver.get_text(css_line_info)
 
-    # def getCurrentPageNbr(self):
-    #     css_current_page = ".current > a:nth-child(1)"
-    #     # current_page = self.driver.find_element(css_current_page)
-    #     return int(self.driver.get_text(css_current_page))
+        if ("Archive" in typeLine):
+            return True
+
+    def getNameLine(self, css_line):
+        css_line_info = css_line + \
+            " > div:nth-child(2) > div:nth-child(1)"
+
+        infoLine = self.driver.get_text(css_line_info)
+        infoLine_split = infoLine.split('\n')
+        if (len(infoLine_split) > 0):
+            print(infoLine_split[0])
 
     def getCurrentTotalPageNbr(self):
         # TODO it might not work with a low page number...
         # maybe reduce the number li:nth-child(7) until it found some thing
         css_total_page_nbr = ".pagination > li:nth-child(7) > a:nth-child(1)"
         self.total_page_nbr = int(self.driver.get_text(css_total_page_nbr))
+        return self.total_page_nbr
 
     def clickOnNextPage(self):
-        if(self.current_page_nbr == 1):
+        if (self.current_page_nbr == 1):
             css_click_on_next_page = f".pagination > li:nth-child(3) > a:nth-child(1)"
-        elif(self.current_page_nbr == 2):
+        elif (self.current_page_nbr == 2):
             css_click_on_next_page = f".pagination > li:nth-child(5) > a:nth-child(1)"
-        elif(self.current_page_nbr == 3):
+        elif (self.current_page_nbr == 3):
             css_click_on_next_page = f".pagination > li:nth-child(6) > a:nth-child(1)"
-        elif(self.current_page_nbr == self.total_page_nbr -1)
+        elif (self.current_page_nbr == self.total_page_nbr - 1):
             css_click_on_next_page = ".pagination > li:nth-child(8) > a:nth-child(1)"
         else:
             css_click_on_next_page = ".pagination > li:nth-child(7) > a:nth-child(1)"
 
         next_page_button = self.driver.find_element(css_click_on_next_page)
         next_page_button.click()
-        self.current_page_nbr +=1
+        self.current_page_nbr += 1
 
         css_archive_toggle = "#categories_1-archives"
         self.driver.wait_for_element_visible(
             css_archive_toggle, timeout=20)
-
-
-    # def getRowInformations(self):
-        # a.ligne-resultat:nth-child(1)
-        # a.ligne-resultat:nth-child(1) > div:nth-child(2) > div:nth-child(1) > p:nth-child(4) > em:nth-child(1)
-        # a.ligne-resultat:nth-child(4)
-        # a.ligne-resultat:nth-child(7)
-        # a.ligne-resultat:nth-child(57)
-
-
-
-
-
 
