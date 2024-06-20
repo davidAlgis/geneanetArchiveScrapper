@@ -24,7 +24,7 @@ class GeneanetScrapper():
     def _start_browser(self):
         print("Start browser...")
         self.driver = Driver(browser="firefox",
-                             uc=True, headless=False, locale_code='fr')
+                             headless=False, locale_code='fr')
 
     def connect(self, id, password):
         self._start_browser()
