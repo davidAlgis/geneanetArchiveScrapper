@@ -111,10 +111,14 @@ class GeneanetScrapper():
                         place, type_place =  self.getPlaceLine(css_line_j)
                         print(f"place = {place} and type place = {type_place}")
                         print(f"last name = {last_name} and first name = {first_name}")
-                        # self.driver.uc_open_with_tab("data:text/html,<h1>Page A</h1>")
+                        link_to_new_page = self.driver.get_attribute(css_line_j, "href")
+                        self.driver.switch_to.new_window(link_to_new_page)
+                        self.driver.open(link_to_new_page)
+                        self.driver.sleep(3)
+                        self.driver.close()
+                        self.driver.switch_to.window(self.driver.window_handles[0])
                         # # click_on_line = self.driver.find_element(css_line_j)
                         # # click_on_line.click()
-                        # link_to_new_page = self.driver.get_attribute(css_line_j, "href")
 
 
                         # # current_url = self.driver.get_current_url()
