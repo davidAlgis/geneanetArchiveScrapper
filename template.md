@@ -35,3 +35,6 @@ tags:
 - __Date de mariage__ : 
 - __Notes mariage__ :
 - __Sources mariage__ :
+
+# Autre
+
