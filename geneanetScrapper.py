@@ -3,7 +3,16 @@ import getpass
 from seleniumbase import Driver
 from geneanetItemToMd import GeneanetItemToMd
 
-class GeneanetScrapper:
+def split_name(name):
+    # Split the string into a list of words
+    words = name.split()
+    # The last name is the first word, and the first name is the second word
+    last_name = words[0]
+    first_names = ' '.join(words[1:])
+    # Return the last name and first name as a tuple
+    return (last_name, first_names)
+
+class GeneanetScrapper():
     def __init__(self, headless=True):
         self.path, filename = os.path.split(os.path.realpath(__file__))
         self.headless = headless
@@ -96,8 +105,35 @@ class GeneanetScrapper:
             for j in range(maxNbrItemInPage):
                 css_line_j = f"a.ligne-resultat:nth-child({j})"
                 if self.driver.is_element_present(css_line_j):
-                    if (self.isArchiveLine(css_line_j)):
-                        self.getNameLine(css_line_j)
+                    isArchive, typeArchive = self.isArchiveLine(css_line_j)
+                    if(isArchive):
+                        last_name, first_name = self.getNameLine(css_line_j)
+                        place, type_place =  self.getPlaceLine(css_line_j)
+                        print(f"place = {place} and type place = {type_place}")
+                        print(f"last name = {last_name} and first name = {first_name}")
+                        # self.driver.uc_open_with_tab("data:text/html,<h1>Page A</h1>")
+                        # # click_on_line = self.driver.find_element(css_line_j)
+                        # # click_on_line.click()
+                        # link_to_new_page = self.driver.get_attribute(css_line_j, "href")
+
+
+                        # # current_url = self.driver.get_current_url()
+                        # self.driver.get(
+                        #     link_to_new_page)
+
+                        # css_download = "button.svg-icon-viewer-download"
+                        # self.driver.wait_for_element_visible(
+                        #     css_download, timeout=20)
+
+                        # self.driver.go_back()
+
+                        # self.open_new_window()
+                        # a = TabSwitchingTests()
+                        # a.test_switch_to_tabs()
+
+                        # itemGeneanetJ = GeneanetItemToMd(last_name, first_name)
+                        return
+
             self.clickOnNextPage()
 
     def isArchiveLine(self, css_line):
@@ -108,7 +144,19 @@ class GeneanetScrapper:
             typeLine = self.driver.get_text(css_line_info)
 
         if ("Archive" in typeLine):
-            return True
+            if("Mariage" in typeLine):
+                typeArchive = "Mariage"
+            elif("Naissance" in typeLine):
+                typeArchive = "Naissance"
+            elif("Décès" in typeLine):
+                typeArchive = "Décès"
+            elif("Cimetière" in typeLine):
+                typeArchive = "Décès"
+            else:
+                typeArchive = "Inconnu"
+            return (True, typeArchive)
+        return (False, "")
+
 
     def getNameLine(self, css_line):
         css_line_info = css_line + \
@@ -118,6 +166,26 @@ class GeneanetScrapper:
         infoLine_split = infoLine.split('\n')
         if (len(infoLine_split) > 0):
             print(infoLine_split[0])
+            return split_name(infoLine_split[0])
+
+        return ("","")
+
+    def getPlaceLine(self, css_line):
+        css_line_place = css_line + \
+            " > div:nth-child(2) > div:nth-child(3) > p:nth-child(1) > span:nth-child(2)"
+        place = self.driver.get_text(css_line_place)
+        css_line_type_place = css_line+" > div:nth-child(2) > div:nth-child(3) > p:nth-child(1) > span:nth-child(1) > span:nth-child(1)"
+        icon_class_name = self.driver.get_attribute(css_line_type_place, "class")
+        if("grave" in icon_class_name):
+            return (place, "Décès")
+        elif("Union" in icon_class_name):
+            return (place, "Mariage")
+        elif("Birth" in icon_class_name):
+            return (place, "Naissance")
+        elif("House" in icon_class_name):
+            return (place, "Autres")
+        else:
+            return (place, "Inconnu")
 
     def getCurrentTotalPageNbr(self):
         # TODO it might not work with a low page number...
