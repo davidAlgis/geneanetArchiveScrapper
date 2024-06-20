@@ -1,5 +1,6 @@
 import os
 import getpass
+import time
 from seleniumbase import Driver
 from geneanetItemToMd import GeneanetItemToMd
 
@@ -12,6 +13,58 @@ def split_name(name):
     # Return the last name and first name as a tuple
     return (last_name, first_names)
 
+
+def to_upper_camel_case(string):
+    # Split the string into words
+    words = string.split()
+    # Capitalize the first letter of each word and join them together
+    camel_case_string = ''.join(word.capitalize() for word in words)
+    return camel_case_string
+
+
+def wait_for_download(directory, max_wait_time=10, sleep_time=0.2):
+    start_time = time.time()
+    while True:
+        files_in_directory = os.listdir(directory)
+        if files_in_directory:
+            try:
+                latest_file = max(files_in_directory, key=lambda f: os.path.getctime(
+                    os.path.join(directory, f)))
+                if not os.path.isfile(os.path.join(directory, latest_file)):
+                    continue
+                else:
+                    print(f"Download complete. File: {latest_file}")
+                    return True, latest_file
+            except FileNotFoundError:
+                print("File not found. Skipping...")
+                continue
+
+        if time.time() - start_time > max_wait_time:
+            print("Max wait time reached. Download not completed.")
+            return False, None
+
+        time.sleep(sleep_time)
+
+
+def rename_file(directory, current_filename, new_filename):
+    current_file_path = os.path.join(directory, current_filename)
+    new_file_path = os.path.join(directory, new_filename)
+    counter = 1
+
+    while os.path.exists(new_file_path):
+        new_file_path_without_ext = os.path.splitext(new_file_path)[0]
+        new_file_ext = os.path.splitext(new_file_path)[1]
+        new_file_path = f"{new_file_path_without_ext}_{counter}{new_file_ext}"
+        counter += 1
+
+    try:
+        os.rename(current_file_path, new_file_path)
+    except FileNotFoundError:
+        print(f"File {current_filename} not found.")
+    except Exception as e:
+        print(f"Error renaming file: {str(e)}")
+
+
 class GeneanetScrapper():
     def __init__(self, headless=True):
         self.path, filename = os.path.split(os.path.realpath(__file__))
@@ -20,6 +73,7 @@ class GeneanetScrapper():
         self.is_connected = False
         self.total_page_nbr = 1
         self.current_page_nbr = 1
+        self.download_path = ".\\downloaded_files"
 
     def _start_browser(self):
         print("Start browser...")
@@ -106,34 +160,33 @@ class GeneanetScrapper():
                 css_line_j = f"a.ligne-resultat:nth-child({j})"
                 if self.driver.is_element_present(css_line_j):
                     isArchive, typeArchive = self.isArchiveLine(css_line_j)
-                    if(isArchive):
+                    if (isArchive):
                         last_name, first_name = self.getNameLine(css_line_j)
-                        place, type_place =  self.getPlaceLine(css_line_j)
-                        print(f"place = {place} and type place = {type_place}")
-                        print(f"last name = {last_name} and first name = {first_name}")
-                        link_to_new_page = self.driver.get_attribute(css_line_j, "href")
+                        place, type_place = self.getPlaceLine(css_line_j)
+
+                        link_to_new_page = self.driver.get_attribute(
+                            css_line_j, "href")
                         self.driver.switch_to.new_window(link_to_new_page)
                         self.driver.open(link_to_new_page)
-                        self.driver.sleep(3)
-                        self.driver.close()
-                        self.driver.switch_to.window(self.driver.window_handles[0])
-                        # # click_on_line = self.driver.find_element(css_line_j)
-                        # # click_on_line.click()
+                        css_download = "button.svg-icon-viewer-download"
+                        self.driver.wait_for_element_visible(
+                            css_download, timeout=20)
+                        self.driver.click(css_download)
 
-
-                        # # current_url = self.driver.get_current_url()
-                        # self.driver.get(
-                        #     link_to_new_page)
-
-                        # css_download = "button.svg-icon-viewer-download"
-                        # self.driver.wait_for_element_visible(
-                        #     css_download, timeout=20)
-
-                        # self.driver.go_back()
-
-                        # self.open_new_window()
-                        # a = TabSwitchingTests()
-                        # a.test_switch_to_tabs()
+                        has_complete_download, file_download = wait_for_download(
+                            self.download_path, 20)
+                        if (has_complete_download):
+                            file_extension = os.path.splitext(file_download)[1]
+                            new_file_name = "Archive" + ' ' + typeArchive + ' ' \
+                                + last_name + ' ' + first_name + ' ' + file_extension
+                            new_file_name = to_upper_camel_case(new_file_name)
+                            rename_file(
+                                self.download_path, file_download, new_file_name)
+                            print("rename to ", new_file_name)
+                        # self.driver.sleep(3)
+                        # self.driver.close()
+                        # self.driver.switch_to.window(
+                        #     self.driver.window_handles[0])
 
                         # itemGeneanetJ = GeneanetItemToMd(last_name, first_name)
                         return
@@ -148,19 +201,18 @@ class GeneanetScrapper():
             typeLine = self.driver.get_text(css_line_info)
 
         if ("Archive" in typeLine):
-            if("Mariage" in typeLine):
+            if ("Mariage" in typeLine):
                 typeArchive = "Mariage"
-            elif("Naissance" in typeLine):
+            elif ("Naissance" in typeLine):
                 typeArchive = "Naissance"
-            elif("Décès" in typeLine):
+            elif ("Décès" in typeLine):
                 typeArchive = "Décès"
-            elif("Cimetière" in typeLine):
+            elif ("Cimetière" in typeLine):
                 typeArchive = "Décès"
             else:
                 typeArchive = "Inconnu"
             return (True, typeArchive)
         return (False, "")
-
 
     def getNameLine(self, css_line):
         css_line_info = css_line + \
@@ -172,21 +224,23 @@ class GeneanetScrapper():
             print(infoLine_split[0])
             return split_name(infoLine_split[0])
 
-        return ("","")
+        return ("", "")
 
     def getPlaceLine(self, css_line):
         css_line_place = css_line + \
             " > div:nth-child(2) > div:nth-child(3) > p:nth-child(1) > span:nth-child(2)"
         place = self.driver.get_text(css_line_place)
-        css_line_type_place = css_line+" > div:nth-child(2) > div:nth-child(3) > p:nth-child(1) > span:nth-child(1) > span:nth-child(1)"
-        icon_class_name = self.driver.get_attribute(css_line_type_place, "class")
-        if("grave" in icon_class_name):
+        css_line_type_place = css_line + \
+            " > div:nth-child(2) > div:nth-child(3) > p:nth-child(1) > span:nth-child(1) > span:nth-child(1)"
+        icon_class_name = self.driver.get_attribute(
+            css_line_type_place, "class")
+        if ("grave" in icon_class_name):
             return (place, "Décès")
-        elif("Union" in icon_class_name):
+        elif ("Union" in icon_class_name):
             return (place, "Mariage")
-        elif("Birth" in icon_class_name):
+        elif ("Birth" in icon_class_name):
             return (place, "Naissance")
-        elif("House" in icon_class_name):
+        elif ("House" in icon_class_name):
             return (place, "Autres")
         else:
             return (place, "Inconnu")
@@ -217,4 +271,3 @@ class GeneanetScrapper():
         css_archive_toggle = "#categories_1-archives"
         self.driver.wait_for_element_visible(
             css_archive_toggle, timeout=20)
-
