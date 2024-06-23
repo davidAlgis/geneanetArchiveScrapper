@@ -1,68 +1,7 @@
 import os
-import getpass
-import time
 from seleniumbase import Driver
 from geneanetItemToMd import GeneanetItemToMd
-
-def split_name(name):
-    # Split the string into a list of words
-    words = name.split()
-    # The last name is the first word, and the first name is the second word
-    last_name = words[0]
-    first_names = ' '.join(words[1:])
-    # Return the last name and first name as a tuple
-    return (last_name, first_names)
-
-
-def to_upper_camel_case(string):
-    # Split the string into words
-    words = string.split()
-    # Capitalize the first letter of each word and join them together
-    camel_case_string = ''.join(word.capitalize() for word in words)
-    return camel_case_string
-
-
-def wait_for_download(directory, max_wait_time=10, sleep_time=0.2):
-    start_time = time.time()
-    while True:
-        files_in_directory = os.listdir(directory)
-        if files_in_directory:
-            try:
-                latest_file = max(files_in_directory, key=lambda f: os.path.getctime(
-                    os.path.join(directory, f)))
-                if not os.path.isfile(os.path.join(directory, latest_file)):
-                    continue
-                else:
-                    print(f"Download complete. File: {latest_file}")
-                    return True, latest_file
-            except FileNotFoundError:
-                print("File not found. Skipping...")
-                continue
-
-        if time.time() - start_time > max_wait_time:
-            print("Max wait time reached. Download not completed.")
-            return False, None
-
-        time.sleep(sleep_time)
-
-
-def rename_file(directory, current_filename, new_filename):
-    current_file_path = os.path.join(directory, current_filename)
-    new_file_path = os.path.join(directory, new_filename)
-    counter = 1
-
-    while os.path.exists(new_file_path):
-        new_file_path_without_ext = os.path.splitext(new_file_path)[0]
-        new_file_ext = os.path.splitext(new_file_path)[1]
-        new_file_path = f"{new_file_path_without_ext}_{counter}{new_file_ext}"
-        counter += 1
-
-    try:
-        os.rename(current_file_path, new_file_path)
-    except FileNotFoundError:
-        print(f"File {current_filename} not found.")
-    except Exception as e:
-        print(f"Error renaming file: {str(e)}")
+import utils
 
 
 class GeneanetScrapper():
@@ -157,41 +96,47 @@ class GeneanetScrapper():
         maxNbrItemInPage = 100
         for i in range(totalPageNbr):
             for j in range(maxNbrItemInPage):
-                css_line_j = f"a.ligne-resultat:nth-child({j})"
-                if self.driver.is_element_present(css_line_j):
-                    isArchive, typeArchive = self.isArchiveLine(css_line_j)
-                    if (isArchive):
-                        last_name, first_name = self.getNameLine(css_line_j)
-                        place, type_place = self.getPlaceLine(css_line_j)
+                self.handle_item(j)
 
-                        link_to_new_page = self.driver.get_attribute(
-                            css_line_j, "href")
-                        self.driver.switch_to.new_window(link_to_new_page)
-                        self.driver.open(link_to_new_page)
-                        css_download = "button.svg-icon-viewer-download"
-                        self.driver.wait_for_element_visible(
-                            css_download, timeout=20)
-                        self.driver.click(css_download)
+                # self.driver.sleep(3)
+                # self.driver.close()
+                # self.driver.switch_to.window(
+                #     self.driver.window_handles[0])
 
-                        has_complete_download, file_download = wait_for_download(
-                            self.download_path, 20)
-                        if (has_complete_download):
-                            file_extension = os.path.splitext(file_download)[1]
-                            new_file_name = "Archive" + ' ' + typeArchive + ' ' \
-                                + last_name + ' ' + first_name + ' ' + file_extension
-                            new_file_name = to_upper_camel_case(new_file_name)
-                            rename_file(
-                                self.download_path, file_download, new_file_name)
-                            print("rename to ", new_file_name)
-                        # self.driver.sleep(3)
-                        # self.driver.close()
-                        # self.driver.switch_to.window(
-                        #     self.driver.window_handles[0])
-
-                        # itemGeneanetJ = GeneanetItemToMd(last_name, first_name)
-                        return
+                # itemGeneanetJ = GeneanetItemToMd(last_name, first_name)
+                # return
 
             self.clickOnNextPage()
+
+    def handle_item(self, j):
+        css_line_j = f"a.ligne-resultat:nth-child({j})"
+        if self.driver.is_element_present(css_line_j):
+            isArchive, typeArchive = self.isArchiveLine(css_line_j)
+            if (isArchive):
+                last_name, first_name = self.getNameLine(css_line_j)
+                place, type_place = self.getPlaceLine(css_line_j)
+
+                link_to_new_page = self.driver.get_attribute(
+                    css_line_j, "href")
+                self.driver.switch_to.new_window(link_to_new_page)
+                self.driver.open(link_to_new_page)
+                css_download = "button.svg-icon-viewer-download"
+                self.driver.wait_for_element_visible(
+                    css_download, timeout=20)
+                self.driver.click(css_download)
+
+                has_complete_download, file_download = utils.wait_for_download(
+                    self.download_path, 20)
+                if (has_complete_download):
+                    file_extension = os.path.splitext(file_download)[1]
+                    new_file_name = "Archive" + ' ' + typeArchive + ' ' \
+                        + last_name + ' ' + first_name + ' ' + file_extension
+                    new_file_name = utils.to_upper_camel_case(new_file_name)
+                    # wait_time_after_download = 0.1
+                    # self.driver.sleep(wait_time_after_download)
+                    utils.rename_file(
+                        self.download_path, file_download, new_file_name)
+                    print("rename to ", new_file_name)
 
     def isArchiveLine(self, css_line):
         css_line_info = css_line + \
@@ -222,7 +167,7 @@ class GeneanetScrapper():
         infoLine_split = infoLine.split('\n')
         if (len(infoLine_split) > 0):
             print(infoLine_split[0])
-            return split_name(infoLine_split[0])
+            return utils.split_name(infoLine_split[0])
 
         return ("", "")
 
