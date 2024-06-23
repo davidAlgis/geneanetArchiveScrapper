@@ -1,5 +1,6 @@
 import os
 import time
+import shutil
 
 
 def split_name(name):
@@ -31,6 +32,21 @@ def is_file_size_stable(file_path, retries, sleep_time):
     return False
 
 
+def move_file_to_folder(folder_path, file_path_to_move):
+    # Check if the new folder exists
+    if not os.path.exists(folder_path):
+        # If not, create it
+        os.makedirs(folder_path)
+
+    # Check if the file exists
+    if os.path.exists(file_path_to_move):
+        # If it does, move it to the new folder
+        shutil.move(file_path_to_move, folder_path)
+    else:
+        print(f"The file {file_path_to_move}"
+              " does not exist in the download path.")
+
+
 def wait_for_download(directory, max_wait_time=10, sleep_time=0.2, size_check_retries=5):
     start_time = time.time()
     while True:
@@ -46,11 +62,7 @@ def wait_for_download(directory, max_wait_time=10, sleep_time=0.2, size_check_re
 
                 # Check if file size is stable
                 if is_file_size_stable(file_path, size_check_retries, sleep_time):
-                    print(f"Download complete. File: {latest_file}")
                     return True, latest_file
-                else:
-                    print(
-                        f"File {latest_file} is still downloading. Waiting...")
             except FileNotFoundError:
                 print("File not found. Skipping...")
                 continue
@@ -71,15 +83,14 @@ def rename_file(directory, current_filename, new_filename):
 
     while os.path.exists(new_file_path):
         new_file_path = f"{new_file_path_without_ext}_{counter}{new_file_ext}"
-        print(f"new_file_path_without_ext = "
-              f"{new_file_path_without_ext}, new_file_ext = {new_file_ext} and "
-              f"new_file_path = {new_file_path}")
         counter += 1
 
     try:
         os.rename(current_file_path, new_file_path)
-        print(f"rename from {current_file_path} and {new_file_path}")
+        return new_file_path
     except FileNotFoundError:
         print(f"File {current_filename} not found.")
+        return ""
     except Exception as e:
         print(f"Error renaming file: {str(e)}")
+        return ""

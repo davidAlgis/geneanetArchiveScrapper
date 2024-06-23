@@ -5,7 +5,7 @@ import utils
 
 
 class GeneanetScrapper():
-    def __init__(self, headless=True):
+    def __init__(self, individu_folder, headless=True):
         self.path, filename = os.path.split(os.path.realpath(__file__))
         self.headless = headless
         self.driver = None
@@ -13,6 +13,7 @@ class GeneanetScrapper():
         self.total_page_nbr = 1
         self.current_page_nbr = 1
         self.download_path = ".\\downloaded_files"
+        self.individu_folder = individu_folder
 
     def _start_browser(self):
         print("Start browser...")
@@ -128,15 +129,22 @@ class GeneanetScrapper():
                 has_complete_download, file_download = utils.wait_for_download(
                     self.download_path, 20)
                 if (has_complete_download):
+                    folder_individu = utils.to_upper_camel_case(
+                        last_name + ' ' + first_name)
+                    folder_individu_path = os.path.join(
+                        self.individu_folder, folder_individu)
+                    file_download_path = os.path.join(
+                        self.download_path, file_download)
+                    utils.move_file_to_folder(
+                        folder_individu_path, file_download_path)
                     file_extension = os.path.splitext(file_download)[1]
                     new_file_name = "Archive" + ' ' + typeArchive + ' ' \
                         + last_name + ' ' + first_name + ' ' + file_extension
                     new_file_name = utils.to_upper_camel_case(new_file_name)
-                    # wait_time_after_download = 0.1
-                    # self.driver.sleep(wait_time_after_download)
-                    utils.rename_file(
-                        self.download_path, file_download, new_file_name)
-                    print("rename to ", new_file_name)
+                    new_file_name = utils.rename_file(
+                        folder_individu_path, file_download, new_file_name)
+                    # new_file_path = os.path.join(
+                    # self.download_path, new_file_name)
 
     def isArchiveLine(self, css_line):
         css_line_info = css_line + \
