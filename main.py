@@ -12,7 +12,7 @@ parser.add_argument('-t', '--template', type=str, default='template.md',
 args = parser.parse_args()
 
 # Usage
-scraper = GeneanetScrapper(args.directory)
+scraper = GeneanetScrapper(args.directory, args.template)
 # login = input("Please enter your login to geneanet :")
 # password = getpass.getpass("Please enter your password for geneanet : ")
 scraper.connect("david.algis@tutamail.com", "mdpTest67")
