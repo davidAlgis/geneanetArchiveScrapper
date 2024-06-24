@@ -182,5 +182,4 @@ class GeneanetItemToMd:
 
     def set_wedding_src(self, src):
         self.wedding_src = src
-        print(src)
         self.fill_field("Sources mariage", src)

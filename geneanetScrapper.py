@@ -1,7 +1,9 @@
+from tqdm import tqdm
 import os
 from seleniumbase import Driver
 from geneanetItemToMd import GeneanetItemToMd
 import utils
+from tqdm import tqdm
 
 
 class GeneanetScrapper():
@@ -19,7 +21,7 @@ class GeneanetScrapper():
     def _start_browser(self):
         print("Start browser...")
         self.driver = Driver(browser="firefox",
-                             headless=False, locale_code='fr')
+                             headless=True, locale_code='fr')
 
     def connect(self, id, password):
         self._start_browser()
@@ -90,10 +92,9 @@ class GeneanetScrapper():
         totalPageNbr = self.getCurrentTotalPageNbr()
         # Add tqdm to this loop
         maxNbrItemInPage = 100
-        for i in range(totalPageNbr):
-            for j in range(maxNbrItemInPage):
+        for i in tqdm(range(totalPageNbr), desc="Page Loop"):
+            for j in tqdm(range(maxNbrItemInPage), desc="Item Loop", leave=False):
                 self.handle_item(j)
-            return
             self.clickOnNextPage()
 
     def handle_item(self, j):
@@ -111,7 +112,6 @@ class GeneanetScrapper():
                     self.individu_folder, folder_individu)
                 content_acte, src_acte, src_archive = self.get_associated_archive(
                     css_line_j, last_name, first_name, folder_individu_path, typeArchive)
-                print(src_archive)
                 name_image = ""
                 if (len(src_archive.split('\\')) > 0):
                     name_image = src_archive.split('\\')[-1]
@@ -243,7 +243,7 @@ class GeneanetScrapper():
                 src_archive = new_file_name
         if (self.driver.is_element_visible(css_releve_collab)):
             css_content_acte = ".acte-content"
-            css_src_acte = ".releve-detail-container > div: nth-child(2)"
+            css_src_acte = ".releve-detail-container > div:nth-child(2)"
             if self.driver.is_element_present(css_content_acte):
                 content_acte = self.driver.get_text(css_content_acte)
             else:

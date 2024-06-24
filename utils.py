@@ -1,6 +1,7 @@
 import os
 import time
 import shutil
+import re
 
 
 def split_name(name):
@@ -32,17 +33,40 @@ def is_file_size_stable(file_path, retries, sleep_time):
     return False
 
 
+def sanitize_path_component(component):
+    """
+    Removes invalid characters from the path component.
+    """
+    return re.sub(r'[\\/:*?"<>|]', '', component)
+
+
 def move_file_to_folder(folder_path, file_path_to_move):
+    # Split the folder path into components
+    components = folder_path.split('\\')
+
+    # Sanitize each component
+    sanitized_components = [sanitize_path_component(
+        component) for component in components]
+
+    # Join the sanitized components back into a path
+    sanitized_folder_path = '\\'.join(sanitized_components)
+
     # Check if the new folder exists
-    if not os.path.exists(folder_path):
+    if not os.path.exists(sanitized_folder_path):
         # If not, create it
-        os.makedirs(folder_path)
+        os.makedirs(sanitized_folder_path)
 
     # Check if the file exists
     if os.path.exists(file_path_to_move):
+        # Split the file path into a directory and a file name
+        file_directory, file_name = os.path.split(file_path_to_move)
+
+        # Sanitize the file name
+        sanitized_file_name = sanitize_path_component(file_name)
+
         # Define the destination file path
         destination_file_path = os.path.join(
-            folder_path, os.path.basename(file_path_to_move))
+            sanitized_folder_path, sanitized_file_name)
 
         try:
             # Copy the file to the new folder
