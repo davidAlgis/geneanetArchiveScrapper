@@ -36,5 +36,4 @@ tags:
 - __Notes mariage__ :
 - __Sources mariage__ :
 
-# Autre
 
