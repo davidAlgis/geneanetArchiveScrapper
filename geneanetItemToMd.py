@@ -1,6 +1,8 @@
 import os
 import datetime
 import re
+import utils
+
 
 def french_date(date):
     return date.strftime("%d-%m-%Y")
@@ -17,7 +19,7 @@ class GeneanetItemToMd:
         self.civil_state_src = "Inconnu"
 
         # Birth
-        #date object
+        # date object
         self.birth_date = None
         self.birth_place = "Inconnu"
         self.father = "Inconnu"
@@ -38,8 +40,9 @@ class GeneanetItemToMd:
         self.wedding_notes = ""
         self.wedding_src = "Inconnu"
 
-
-        self.filename = f"{last_name}{first_name}.md"
+        file_individu = utils.to_upper_camel_case(
+            last_name + ' ' + first_name)
+        self.filename = f"{file_individu}.md"
         self.filepath = os.path.join(path_to_md, self.filename)
 
         # check if output directory exists, and if not, create it
@@ -58,8 +61,6 @@ class GeneanetItemToMd:
         self.fill_field("Nom", self.last_name)
         self.fill_field("Prenom", self.first_name)
 
-
-
     def fill_field(self, fieldName, fieldContent):
         with open(self.filepath, "r") as f:
             content = f.read()
@@ -73,11 +74,15 @@ class GeneanetItemToMd:
         existing_content = existing_content[0]
 
         # Replace the existing content with the new content
-        content = content.replace(existing_content, f"__{fieldName}__ : {fieldContent}\n")
+        content = content.replace(
+            existing_content, f"__{fieldName}__ : {fieldContent}\n")
 
         with open(self.filepath, "w") as f:
             f.write(content)
 
+    def add_other(self, data):
+        with open(self.filepath, "a") as f:
+            f.write("\n" + data + "\n")
 
     def set_sex(self, sexe):
         self.sexe = sexe
@@ -158,4 +163,3 @@ class GeneanetItemToMd:
     def set_wedding_src(self, src):
         self.wedding_src = src
         self.fill_field("Sources mariage", src)
-
