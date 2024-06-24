@@ -45,6 +45,8 @@ class GeneanetItemToMd:
         file_individu = utils.to_upper_camel_case(
             last_name + ' ' + first_name)
         self.filename = f"{file_individu}.md"
+        path_to_md = utils.sanitize_path(path_to_md)
+
         self.filepath = os.path.join(path_to_md, self.filename)
 
         # check if output directory exists, and if not, create it

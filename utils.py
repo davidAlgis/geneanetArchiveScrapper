@@ -40,9 +40,9 @@ def sanitize_path_component(component):
     return re.sub(r'[\\/:*?"<>|]', '', component)
 
 
-def move_file_to_folder(folder_path, file_path_to_move):
+def sanitize_path(path):
     # Split the folder path into components
-    components = folder_path.split('\\')
+    components = path.split('\\')
 
     # Sanitize each component
     sanitized_components = [sanitize_path_component(
@@ -50,6 +50,11 @@ def move_file_to_folder(folder_path, file_path_to_move):
 
     # Join the sanitized components back into a path
     sanitized_folder_path = '\\'.join(sanitized_components)
+    return sanitized_folder_path
+
+
+def move_file_to_folder(folder_path, file_path_to_move):
+    sanitized_folder_path = sanitize_path(folder_path)
 
     # Check if the new folder exists
     if not os.path.exists(sanitized_folder_path):
@@ -97,7 +102,7 @@ def wait_for_download(directory, max_wait_time=10, sleep_time=0.2, size_check_re
                 if is_file_size_stable(file_path, size_check_retries, sleep_time):
                     return True, latest_file
             except FileNotFoundError:
-                print("File not found. Skipping...")
+                print("Download file not found. Skipping...\n")
                 continue
 
         if time.time() - start_time > max_wait_time:

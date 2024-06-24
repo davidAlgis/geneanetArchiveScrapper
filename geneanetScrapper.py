@@ -103,6 +103,8 @@ class GeneanetScrapper():
             isArchive, typeArchive = self.isArchiveLine(css_line_j)
             if (isArchive):
                 last_name, first_name = self.getNameLine(css_line_j)
+                last_name = utils.sanitize_path_component(last_name)
+                first_name = utils.sanitize_path_component(first_name)
                 places = self.getPlaceLine(css_line_j)
                 dates = self.get_associated_date(css_line_j)
 
@@ -247,11 +249,13 @@ class GeneanetScrapper():
             if self.driver.is_element_present(css_content_acte):
                 content_acte = self.driver.get_text(css_content_acte)
             else:
-                print("Unable to get the content of the acte")
+                print("Unable to get the content of the acte "
+                      f"{last_name} {first_name}\n")
             if self.driver.is_element_present(css_src_acte):
                 src_acte = self.driver.get_text(css_src_acte)
             else:
-                print("Unable to get the source of the acte")
+                print("Unable to get the source of the acte for "
+                      f"{last_name} {first_name}\n")
 
         self.driver.close()
         self.driver.switch_to.window(
