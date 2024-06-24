@@ -111,12 +111,16 @@ class GeneanetScrapper():
                     self.individu_folder, folder_individu)
                 content_acte, src_acte, src_archive = self.get_associated_archive(
                     css_line_j, last_name, first_name, folder_individu_path, typeArchive)
+                print(src_archive)
+                name_image = ""
+                if (len(src_archive.split('\\')) > 0):
+                    name_image = src_archive.split('\\')[-1]
                 individu_j = GeneanetItemToMd(last_name, first_name,
                                               folder_individu_path, self.file_path_to_template_individu)
                 if (typeArchive == "Décès"):
                     if (src_archive != ""):
                         individu_j.set_death_src(
-                            f"cf. ({src_archive})[{src_archive}]")
+                            f"cf. ![]({name_image})")
                     else:
                         if (content_acte != ""):
                             individu_j.set_death_notes(
@@ -127,7 +131,7 @@ class GeneanetScrapper():
                 elif (typeArchive == "Mariage"):
                     if (src_archive != ""):
                         individu_j.set_wedding_src(
-                            f"cf. ({src_archive})[{src_archive}]")
+                            f"cf. ![]({name_image})")
                     else:
                         if (content_acte != ""):
                             individu_j.set_wedding_notes(
@@ -138,7 +142,7 @@ class GeneanetScrapper():
                 elif (typeArchive == "Naissance"):
                     if (src_archive != ""):
                         individu_j.set_birth_src(
-                            f"cf. ({src_archive})[{src_archive}]")
+                            f"cf. ![]({name_image})")
                     else:
                         if (content_acte != ""):
                             individu_j.set_birth_notes(
@@ -231,8 +235,8 @@ class GeneanetScrapper():
                 file_extension = os.path.splitext(file_download)[1]
                 if ("Autre" in type_archive):
                     type_archive = "Autre"
-                new_file_name = "Archive" + ' ' + type_archive + ' '
-                + last_name + ' ' + first_name + ' ' + file_extension
+                new_file_name = "Archive" + ' ' + type_archive + ' ' + \
+                    last_name + ' ' + first_name + ' ' + file_extension
                 new_file_name = utils.to_upper_camel_case(new_file_name)
                 new_file_name = utils.rename_file(
                     folder_individu_path, file_download, new_file_name)
