@@ -222,7 +222,9 @@ class GeneanetScrapper():
             if (time_check > time_out):
                 print(
                     "\nUnable to found download button or releve collaboratif"
-                    "text. Unknown windows, we close it\n")
+                    f" text for {last_name} {first_name} with css : {css_line_j}.")
+                    "Unknown windows, we close it.\n"
+                break
 
         if (self.driver.is_element_visible(css_download)):
             self.driver.click(css_download)
