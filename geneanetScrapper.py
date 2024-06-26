@@ -90,8 +90,7 @@ class GeneanetScrapper():
 
     def loopOnPagesSearch(self):
         totalPageNbr = self.getCurrentTotalPageNbr()
-        # Add tqdm to this loop
-        maxNbrItemInPage = 100
+        maxNbrItemInPage = 70
         for i in tqdm(range(totalPageNbr), desc="Page Loop"):
             for j in tqdm(range(maxNbrItemInPage), desc="Item Loop", leave=False):
                 self.handle_item(j)
@@ -200,7 +199,7 @@ class GeneanetScrapper():
                     pairs.append((parts[0], parts[1]))
             return pairs
         else:
-            print("Unable to find date")
+            print("\nUnable to find date\n")
             return []
 
     def get_associated_archive(self, css_line_j, last_name, first_name, folder_individu_path, type_archive):
@@ -222,8 +221,8 @@ class GeneanetScrapper():
             self.driver.sleep(time_wait_between_2_check)
             if (time_check > time_out):
                 print(
-                    "Unable to found download button or releve collaboratif"
-                    "text. Unknown windows, we close it")
+                    "\nUnable to found download button or releve collaboratif"
+                    "text. Unknown windows, we close it\n")
 
         if (self.driver.is_element_visible(css_download)):
             self.driver.click(css_download)
@@ -246,21 +245,60 @@ class GeneanetScrapper():
         if (self.driver.is_element_visible(css_releve_collab)):
             css_content_acte = ".acte-content"
             css_src_acte = ".releve-detail-container > div:nth-child(2)"
+            # there are 2 types of pages here
+            # css_src_acte_2 = "#expertsys-sources-modal-openlink"
+            css_src_acte_2 = "tr.not-printable"
             if self.driver.is_element_present(css_content_acte):
                 content_acte = self.driver.get_text(css_content_acte)
+                content_acte = "\n" + utils.format_string_to_bullets(content_acte)
             else:
-                print("Unable to get the content of the acte "
-                      f"{last_name} {first_name}\n")
+                print("\nUnable to get the content of the acte of " 
+                        f"{last_name} {first_name} with css : {css_line_j}.\n")
             if self.driver.is_element_present(css_src_acte):
                 src_acte = self.driver.get_text(css_src_acte)
+                src_acte = "\n" +  utils.format_string_to_bullets(src_acte)
+                css_src_access = "#expertsys-sources-modal-link"
+                if(self.driver.is_element_present(css_src_access)):
+                    self.driver.click(css_src_access)
+                    src_acte = self.find_src_in_archive(src_acte, last_name, first_name, css_line_j)
+                else:
+                    print(f"\nUnable to get any further source of the acte of " 
+                        f"{last_name} {first_name} with css : {css_line_j}."
+                        f"\nWe found didn't find this css {css_src_access}")
             else:
-                print("Unable to get the source of the acte for "
-                      f"{last_name} {first_name}\n")
+                if(self.driver.is_element_present(css_src_acte_2)):
+                    css_src_access = "#expertsys-sources-modal-openlink"
+                    self.driver.click(css_src_access)
+                    src_acte = self.find_src_in_archive(src_acte, last_name, first_name, css_line_j)
+                else:
+                    print(f"\nUnable to get any the source of the acte of " 
+                        f"{last_name} {first_name} with css : {css_line_j}."
+                        f"\nWe found neither this css {css_src_acte} nor this css {css_src_acte_2}")
 
         self.driver.close()
         self.driver.switch_to.window(
             self.driver.window_handles[0])
         return (content_acte, src_acte, src_archive)
+
+    def find_src_in_archive(self, src_acte, last_name, first_name, css_line_j):
+        css_list_src = ".expertsys-bullet"
+        try:
+            self.driver.wait_for_element_visible(
+                css_list_src, timeout=3)
+        except:
+            print(f"\nUnable to open the research original act pop up for {last_name} {first_name} with css : {css_line_j}\n")
+            return src_acte
+        src_acte += f"\n\t- Lien registres : "
+        index_src = 1
+        css_list_k_src = f".expertsys-bullet > li:nth-child({index_src}) > a:nth-child(1)"
+        while self.driver.is_element_present(css_list_k_src):
+            link_src_k = self.driver.get_attribute(css_list_k_src, "href")
+            src_acte += f"[Registre {index_src}]({link_src_k}) ou "
+            index_src+=1
+            css_list_k_src = f".expertsys-bullet > li:nth-child({index_src}) > a:nth-child(1)"
+        return src_acte
+    
+
 
     def isArchiveLine(self, css_line):
         css_line_info = css_line + " > div:nth-child(2) > div:nth-child(1)"

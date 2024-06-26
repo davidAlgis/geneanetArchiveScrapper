@@ -102,14 +102,32 @@ def wait_for_download(directory, max_wait_time=10, sleep_time=0.2, size_check_re
                 if is_file_size_stable(file_path, size_check_retries, sleep_time):
                     return True, latest_file
             except FileNotFoundError:
-                print("Download file not found. Skipping...\n")
+                print(f"\nDownload file in {directory} not found. Skipping...\n")
                 continue
 
         if time.time() - start_time > max_wait_time:
-            print("Max wait time reached. Download not completed.")
+            print(f"\nMax wait time reached. Download not completed in {directory}.\n")
             return False, None
 
         time.sleep(sleep_time)
+def format_string_to_bullets(s):
+    # Split the string into lines
+    lines = s.strip().split('\n')
+
+    # Initialize an empty list to hold the bullet points
+    bullets = []
+
+    # Iterate over each pair of lines
+    for i in range(0, len(lines), 2):
+        # Get the key and value
+        key = lines[i]
+        value = lines[i + 1] if i + 1 < len(lines) else ''
+
+        # Add the bullet point to the list
+        bullets.append(f'\t- {key} : {value}')
+
+    # Join the bullet points into a single string and return it
+    return '\n'.join(bullets)
 
 
 def rename_file(directory, current_filename, new_filename):
