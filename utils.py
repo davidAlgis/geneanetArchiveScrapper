@@ -2,6 +2,36 @@ import os
 import time
 import shutil
 import re
+from datetime import datetime
+
+
+def date_to_string(date):
+    if isinstance(date, datetime):
+        if date.day == 1 and date.month == 1:
+            return date.strftime("%Y")
+        elif date.day == 1:
+            return date.strftime("%m-%Y")
+        else:
+            return date.strftime("%d-%m-%Y")
+    else:
+        raise ValueError("Input is not a datetime object")
+
+
+def parse_date(date_str):
+    if isinstance(date_str, datetime):
+        return date_str  # Return if already parsed
+    try:
+        if len(date_str) == 4:  # YYYY
+            return datetime.strptime(date_str, "%Y")
+        elif len(date_str) == 7:  # YYYY-MM
+            return datetime.strptime(date_str, "%m-%Y")
+        elif len(date_str) == 10:  # YYYY-MM-DD
+            return datetime.strptime(date_str, "%d-%m-%Y")
+        else:
+            raise ValueError("Date format not recognized")
+    except ValueError as e:
+        print(f"Error parsing date: {e}")
+        return None
 
 
 def split_name(name):
@@ -102,14 +132,18 @@ def wait_for_download(directory, max_wait_time=10, sleep_time=0.2, size_check_re
                 if is_file_size_stable(file_path, size_check_retries, sleep_time):
                     return True, latest_file
             except FileNotFoundError:
-                print(f"\nDownload file in {directory} not found. Skipping...\n")
+                print(f"\nDownload file in {
+                      directory} not found. Skipping...\n")
                 continue
 
         if time.time() - start_time > max_wait_time:
-            print(f"\nMax wait time reached. Download not completed in {directory}.\n")
+            print(f"\nMax wait time reached. Download not completed in {
+                  directory}.\n")
             return False, None
 
         time.sleep(sleep_time)
+
+
 def format_string_to_bullets(s):
     # Split the string into lines
     lines = s.strip().split('\n')

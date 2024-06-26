@@ -3,6 +3,7 @@ import os
 from seleniumbase import Driver
 from geneanetItemToMd import GeneanetItemToMd
 import utils
+from datetime import datetime
 from tqdm import tqdm
 
 
@@ -17,6 +18,7 @@ class GeneanetScrapper():
         self.download_path = ".\\downloaded_files"
         self.file_path_to_template_individu = file_path_to_template_individu
         self.individu_folder = individu_folder
+        self.individus = []
 
     def _start_browser(self):
         print("Start browser...")
@@ -106,18 +108,35 @@ class GeneanetScrapper():
                 first_name = utils.sanitize_path_component(first_name)
                 places = self.getPlaceLine(css_line_j)
                 dates = self.get_associated_date(css_line_j)
-
+                date_naissance = None
+                for date_pair in dates:
+                    type_date, date = date_pair
+                    if (type_date == "Naissance"):
+                        try:
+                            date_naissance = utils.parse_date(date)
+                        except ValueError:
+                            continue
                 folder_individu = utils.to_upper_camel_case(
                     last_name + ' ' + first_name)
-                folder_individu_path = os.path.join(
-                    self.individu_folder, folder_individu)
+                if (date_naissance is None):
+                    folder_individu_path = os.path.join(
+                        self.individu_folder, folder_individu)
+                    individu_j = GeneanetItemToMd(last_name, first_name,
+                                                  folder_individu_path,
+                                                  self.file_path_to_template_individu)
+                else:
+                    folder_individu += f" - {date_naissance.year}"
+                    folder_individu_path = os.path.join(
+                        self.individu_folder, folder_individu)
+                    individu_j = GeneanetItemToMd.with_birth_date(last_name, first_name, date_naissance,
+                                                                  folder_individu_path,
+                                                                  self.file_path_to_template_individu)
+
                 content_acte, src_acte, src_archive = self.get_associated_archive(
                     css_line_j, last_name, first_name, folder_individu_path, typeArchive)
                 name_image = ""
                 if (len(src_archive.split('\\')) > 0):
                     name_image = src_archive.split('\\')[-1]
-                individu_j = GeneanetItemToMd(last_name, first_name,
-                                              folder_individu_path, self.file_path_to_template_individu)
                 if (typeArchive == "Décès"):
                     if (src_archive != ""):
                         individu_j.set_death_src(
@@ -179,6 +198,8 @@ class GeneanetScrapper():
                     elif (type_date == "Naissance"):
                         individu_j.set_birth_date(date)
 
+                self.individus.append(individu_j)
+
     def get_associated_date(self, css_line):
         css_date = css_line + " > div:nth-child(2) > div:nth-child(2)"
         if (self.driver.is_element_visible(css_date)):
@@ -223,7 +244,7 @@ class GeneanetScrapper():
                 print(
                     "\nUnable to found download button or releve collaboratif"
                     f" text for {last_name} {first_name} with css : {css_line_j}.")
-                    "Unknown windows, we close it.\n"
+                "Unknown windows, we close it.\n"
                 break
 
         if (self.driver.is_element_visible(css_download)):
@@ -252,30 +273,34 @@ class GeneanetScrapper():
             css_src_acte_2 = "tr.not-printable"
             if self.driver.is_element_present(css_content_acte):
                 content_acte = self.driver.get_text(css_content_acte)
-                content_acte = "\n" + utils.format_string_to_bullets(content_acte)
+                content_acte = "\n" + \
+                    utils.format_string_to_bullets(content_acte)
             else:
-                print("\nUnable to get the content of the acte of " 
-                        f"{last_name} {first_name} with css : {css_line_j}.\n")
+                print("\nUnable to get the content of the acte of "
+                      f"{last_name} {first_name} with css : {css_line_j}.\n")
             if self.driver.is_element_present(css_src_acte):
                 src_acte = self.driver.get_text(css_src_acte)
-                src_acte = "\n" +  utils.format_string_to_bullets(src_acte)
+                src_acte = "\n" + utils.format_string_to_bullets(src_acte)
                 css_src_access = "#expertsys-sources-modal-link"
-                if(self.driver.is_element_present(css_src_access)):
+                if (self.driver.is_element_present(css_src_access)):
                     self.driver.click(css_src_access)
-                    src_acte = self.find_src_in_archive(src_acte, last_name, first_name, css_line_j)
+                    src_acte = self.find_src_in_archive(
+                        src_acte, last_name, first_name, css_line_j)
                 else:
-                    print(f"\nUnable to get any further source of the acte of " 
-                        f"{last_name} {first_name} with css : {css_line_j}."
-                        f"\nWe found didn't find this css {css_src_access}")
+                    print(f"\nUnable to get any further source of the acte of "
+                          f"{last_name} {first_name} with css : {css_line_j}."
+                          f"\nWe found didn't find this css {css_src_access}")
             else:
-                if(self.driver.is_element_present(css_src_acte_2)):
+                if (self.driver.is_element_present(css_src_acte_2)):
                     css_src_access = "#expertsys-sources-modal-openlink"
                     self.driver.click(css_src_access)
-                    src_acte = self.find_src_in_archive(src_acte, last_name, first_name, css_line_j)
+                    src_acte = self.find_src_in_archive(
+                        src_acte, last_name, first_name, css_line_j)
                 else:
-                    print(f"\nUnable to get any the source of the acte of " 
-                        f"{last_name} {first_name} with css : {css_line_j}."
-                        f"\nWe found neither this css {css_src_acte} nor this css {css_src_acte_2}")
+                    print(f"\nUnable to get any the source of the acte of "
+                          f"{last_name} {first_name} with css : {css_line_j}."
+                          f"\nWe found neither this css"
+                          f"{css_src_acte} nor this css {css_src_acte_2}")
 
         self.driver.close()
         self.driver.switch_to.window(
@@ -288,19 +313,21 @@ class GeneanetScrapper():
             self.driver.wait_for_element_visible(
                 css_list_src, timeout=3)
         except:
-            print(f"\nUnable to open the research original act pop up for {last_name} {first_name} with css : {css_line_j}\n")
+            print(f"\nUnable to open the research original "
+                  f"act pop up for {last_name} {first_name}"
+                  f"with css : {css_line_j}\n")
             return src_acte
         src_acte += f"\n\t- Lien registres : "
         index_src = 1
-        css_list_k_src = f".expertsys-bullet > li:nth-child({index_src}) > a:nth-child(1)"
+        css_list_k_src = f".expertsys-bullet >" + \
+            f" li:nth-child({index_src}) > a:nth-child(1)"
         while self.driver.is_element_present(css_list_k_src):
             link_src_k = self.driver.get_attribute(css_list_k_src, "href")
             src_acte += f"[Registre {index_src}]({link_src_k}) ou "
-            index_src+=1
-            css_list_k_src = f".expertsys-bullet > li:nth-child({index_src}) > a:nth-child(1)"
+            index_src += 1
+            css_list_k_src = f".expertsys-bullet > " +\
+                f"li:nth-child({index_src}) > a:nth-child(1)"
         return src_acte
-    
-
 
     def isArchiveLine(self, css_line):
         css_line_info = css_line + " > div:nth-child(2) > div:nth-child(1)"

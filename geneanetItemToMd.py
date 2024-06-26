@@ -5,23 +5,41 @@ from datetime import datetime
 import chardet
 
 
-def french_date(date):
-    return date.strftime("%d-%m-%Y")
-
-
 class GeneanetItemToMd:
     def __init__(self, last_name, first_name, path_to_md, file_path_to_template):
-
-        # Civil state
+        self.initialize_fields()
         self.last_name = last_name
         self.first_name = first_name
+
+        self.setup_file(path_to_md, file_path_to_template)
+
+        self.fill_field("Nom", self.last_name)
+        self.fill_field("Prenom", self.first_name)
+
+    @classmethod
+    def with_birth_date(cls, last_name, first_name, birth_date, path_to_md, file_path_to_template):
+        instance = cls.__new__(cls)
+        instance.initialize_fields()
+        instance.last_name = last_name
+        instance.first_name = first_name
+        instance.birth_date = birth_date
+
+        instance.setup_file(path_to_md, file_path_to_template, birth_date)
+
+        instance.fill_field("Nom", instance.last_name)
+        instance.fill_field("Prenom", instance.first_name)
+        instance.fill_field("Date de naissance", birth_date)
+
+        return instance
+
+    def initialize_fields(self):
+        # Civil state
         self.sexe = "Inconnu"
         self.profession = "Inconnu"
         self.civil_state_notes = ""
         self.civil_state_src = "Inconnu"
 
         # Birth
-        # date object
         self.birth_date = None
         self.birth_place = "Inconnu"
         self.father = "Inconnu"
@@ -41,10 +59,15 @@ class GeneanetItemToMd:
         self.wedding_place = "Inconnu"
         self.wedding_notes = ""
         self.wedding_src = "Inconnu"
+        self.other_informations = []
 
+    def setup_file(self, path_to_md, file_path_to_template, birth_date=None):
         file_individu = utils.to_upper_camel_case(
-            last_name + ' ' + first_name)
-        self.filename = f"{file_individu}.md"
+            self.last_name + ' ' + self.first_name)
+        if birth_date:
+            self.filename = f"{file_individu} - {birth_date.year}.md"
+        else:
+            self.filename = f"{file_individu}.md"
         path_to_md = utils.sanitize_path(path_to_md)
 
         self.filepath = os.path.join(path_to_md, self.filename)
@@ -60,20 +83,22 @@ class GeneanetItemToMd:
 
             with open(self.filepath, "w") as f:
                 f.write(template_content.format(
-                    last_name=last_name, first_name=first_name))
-
-        self.fill_field("Nom", self.last_name)
-        self.fill_field("Prenom", self.first_name)
+                    last_name=self.last_name, first_name=self.first_name))
 
     def fill_field(self, fieldName, fieldContent):
         # Determine the encoding of the file
         with open(self.filepath, "rb") as f:
-            # or readline if the file is large
             result = chardet.detect(f.read())
         encoding = result["encoding"]
 
-        with open(self.filepath, "r", encoding=encoding) as f:
-            content = f.read()
+        try:
+            # Read the content with detected encoding
+            with open(self.filepath, "r", encoding=encoding) as f:
+                content = f.read()
+        except (UnicodeDecodeError, TypeError):
+            # Fall back to UTF-8 if detected encoding fails
+            with open(self.filepath, "r", encoding="utf-8") as f:
+                content = f.read()
 
         # Find the existing content for the field, if any
         existing_content = re.findall(f"__{fieldName}__ :.*\n", content)
@@ -91,8 +116,10 @@ class GeneanetItemToMd:
             f.write(content)
 
     def add_other(self, data):
+        data = "\n" + data + "\n"
+        self.other_informations.append(data)
         with open(self.filepath, "a") as f:
-            f.write("\n" + data + "\n")
+            f.write(data)
 
     def set_sex(self, sexe):
         self.sexe = sexe
@@ -112,8 +139,11 @@ class GeneanetItemToMd:
 
     def set_birth_date(self, date):
         try:
-            date_to_write = datetime.strptime(date, "%Y-%m-%d")
-            date_to_write = french_date(date_to_write)
+            date_to_write = utils.parse_date(date)
+            if date_to_write:
+                date_to_write = utils.date_to_string(date_to_write)
+            else:
+                date_to_write = date
         except ValueError:
             date_to_write = date
         self.birth_date = date_to_write
@@ -141,8 +171,11 @@ class GeneanetItemToMd:
 
     def set_death_date(self, date):
         try:
-            date_to_write = datetime.strptime(date, "%Y-%m-%d")
-            date_to_write = french_date(date_to_write)
+            date_to_write = utils.parse_date(date)
+            if date_to_write:
+                date_to_write = utils.date_to_string(date_to_write)
+            else:
+                date_to_write = date
         except ValueError:
             date_to_write = date
         self.death_date = date
@@ -166,8 +199,10 @@ class GeneanetItemToMd:
 
     def set_wedding_date(self, date):
         try:
-            date_to_write = datetime.strptime(date, "%Y-%m-%d")
-            date_to_write = french_date(date_to_write)
+            if date_to_write:
+                date_to_write = utils.date_to_string(date_to_write)
+            else:
+                date_to_write = date
         except ValueError:
             date_to_write = date
 
