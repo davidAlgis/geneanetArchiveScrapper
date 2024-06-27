@@ -2,6 +2,7 @@ from tqdm import tqdm
 import os
 from seleniumbase import Driver
 from geneanetItemToMd import GeneanetItemToMd
+from individu import Individu
 import utils
 from datetime import datetime
 from tqdm import tqdm
@@ -96,7 +97,29 @@ class GeneanetScrapper():
         for i in tqdm(range(totalPageNbr), desc="Page Loop"):
             for j in tqdm(range(maxNbrItemInPage), desc="Item Loop", leave=False):
                 self.handle_item(j)
+            break
             self.clickOnNextPage()
+
+        for individu in self.individus:
+            last_name = individu.get_last_name()
+            first_name = individu.get_first_name()
+            date_naissance = individu.get_birth_date()
+            try:
+                date_naissance = utils.parse_date(date_naissance)
+            except ValueError:
+                date_naissance = None
+
+            folder_individu = utils.to_upper_camel_case(
+                last_name + ' ' + first_name)
+            if (date_naissance is None):
+                folder_individu_path = os.path.join(
+                    self.individu_folder, folder_individu)
+            else:
+                folder_individu += f" - {date_naissance.year}"
+                folder_individu_path = os.path.join(
+                    self.individu_folder, folder_individu)
+            GeneanetItemToMd(individu, folder_individu_path,
+                             self.file_path_to_template_individu)
 
     def handle_item(self, j):
         css_line_j = f"a.ligne-resultat:nth-child({j})"
@@ -108,39 +131,19 @@ class GeneanetScrapper():
                 first_name = utils.sanitize_path_component(first_name)
                 places = self.getPlaceLine(css_line_j)
                 dates = self.get_associated_date(css_line_j)
-                date_naissance = None
-                for date_pair in dates:
-                    type_date, date = date_pair
-                    if (type_date == "Naissance"):
-                        try:
-                            date_naissance = utils.parse_date(date)
-                        except ValueError:
-                            continue
-                folder_individu = utils.to_upper_camel_case(
-                    last_name + ' ' + first_name)
-                if (date_naissance is None):
-                    folder_individu_path = os.path.join(
-                        self.individu_folder, folder_individu)
-                    individu_j = GeneanetItemToMd(last_name, first_name,
-                                                  folder_individu_path,
-                                                  self.file_path_to_template_individu)
-                else:
-                    folder_individu += f" - {date_naissance.year}"
-                    folder_individu_path = os.path.join(
-                        self.individu_folder, folder_individu)
-                    individu_j = GeneanetItemToMd.with_birth_date(last_name, first_name, date_naissance,
-                                                                  folder_individu_path,
-                                                                  self.file_path_to_template_individu)
+
+                # Create an Individu object and set its properties
+                individu_j = Individu(last_name, first_name)
 
                 content_acte, src_acte, src_archive = self.get_associated_archive(
-                    css_line_j, last_name, first_name, folder_individu_path, typeArchive)
-                name_image = ""
-                if (len(src_archive.split('\\')) > 0):
-                    name_image = src_archive.split('\\')[-1]
+                    css_line_j, last_name, first_name, typeArchive)
+                # name_image = ""
+                # if (len(src_archive.split('\\')) > 0):
+                #     name_image = src_archive.split('\\')[-1]
                 if (typeArchive == "Décès"):
                     if (src_archive != ""):
                         individu_j.set_death_src(
-                            f"cf. ![]({name_image})")
+                            f"TOMOVE ({src_archive})")
                     else:
                         if (content_acte != ""):
                             individu_j.set_death_notes(
@@ -151,7 +154,7 @@ class GeneanetScrapper():
                 elif (typeArchive == "Mariage"):
                     if (src_archive != ""):
                         individu_j.set_wedding_src(
-                            f"cf. ![]({name_image})")
+                            f"TOMOVE ({src_archive})")
                     else:
                         if (content_acte != ""):
                             individu_j.set_wedding_notes(
@@ -162,7 +165,7 @@ class GeneanetScrapper():
                 elif (typeArchive == "Naissance"):
                     if (src_archive != ""):
                         individu_j.set_birth_src(
-                            f"cf. ![]({name_image})")
+                            f"TOMOVE ({src_archive})")
                     else:
                         if (content_acte != ""):
                             individu_j.set_birth_notes(
@@ -182,7 +185,7 @@ class GeneanetScrapper():
                     individu_j.add_other(content_autre)
 
                 for place_pair in places:
-                    type_place, place = place_pair
+                    place, type_place = place_pair
                     if (type_place == "Décès"):
                         individu_j.set_death_place(place)
                     elif (type_place == "Mariage"):
@@ -223,7 +226,7 @@ class GeneanetScrapper():
             print("\nUnable to find date\n")
             return []
 
-    def get_associated_archive(self, css_line_j, last_name, first_name, folder_individu_path, type_archive):
+    def get_associated_archive(self, css_line_j, last_name, first_name, type_archive):
         link_to_new_page = self.driver.get_attribute(
             css_line_j, "href")
         self.driver.switch_to.new_window(link_to_new_page)
@@ -237,6 +240,7 @@ class GeneanetScrapper():
         content_acte = ""
         src_acte = ""
         src_archive = ""
+        file_download_path = ""
         while (self.driver.is_element_visible(css_download) is False) and (self.driver.is_element_visible(css_releve_collab) is False):
             time_check += time_wait_between_2_check
             self.driver.sleep(time_wait_between_2_check)
@@ -254,17 +258,17 @@ class GeneanetScrapper():
             if (has_complete_download):
                 file_download_path = os.path.join(
                     self.download_path, file_download)
-                utils.move_file_to_folder(
-                    folder_individu_path, file_download_path)
-                file_extension = os.path.splitext(file_download)[1]
-                if ("Autre" in type_archive):
-                    type_archive = "Autre"
-                new_file_name = "Archive" + ' ' + type_archive + ' ' + \
-                    last_name + ' ' + first_name + ' ' + file_extension
-                new_file_name = utils.to_upper_camel_case(new_file_name)
-                new_file_name = utils.rename_file(
-                    folder_individu_path, file_download, new_file_name)
-                src_archive = new_file_name
+                # utils.move_file_to_folder(
+                #     folder_individu_path, file_download_path)
+                # file_extension = os.path.splitext(file_download)[1]
+                # if ("Autre" in type_archive):
+                #     type_archive = "Autre"
+                # new_file_name = "Archive" + ' ' + type_archive + ' ' + \
+                #     last_name + ' ' + first_name + ' ' + file_extension
+                # new_file_name = utils.to_upper_camel_case(new_file_name)
+                # new_file_name = utils.rename_file(
+                #     folder_individu_path, file_download, new_file_name)
+                # src_archive = new_file_name
         if (self.driver.is_element_visible(css_releve_collab)):
             css_content_acte = ".acte-content"
             css_src_acte = ".releve-detail-container > div:nth-child(2)"
@@ -305,7 +309,7 @@ class GeneanetScrapper():
         self.driver.close()
         self.driver.switch_to.window(
             self.driver.window_handles[0])
-        return (content_acte, src_acte, src_archive)
+        return (content_acte, src_acte, file_download_path)
 
     def find_src_in_archive(self, src_acte, last_name, first_name, css_line_j):
         css_list_src = ".expertsys-bullet"

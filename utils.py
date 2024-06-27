@@ -18,6 +18,8 @@ def date_to_string(date):
 
 
 def parse_date(date_str):
+    if (date_str is None):
+        return None
     if isinstance(date_str, datetime):
         return date_str  # Return if already parsed
     try:
@@ -132,13 +134,13 @@ def wait_for_download(directory, max_wait_time=10, sleep_time=0.2, size_check_re
                 if is_file_size_stable(file_path, size_check_retries, sleep_time):
                     return True, latest_file
             except FileNotFoundError:
-                print(f"\nDownload file in {
-                      directory} not found. Skipping...\n")
+                print(f"\nDownload file in "
+                      f"{directory} not found. Skipping...\n")
                 continue
 
         if time.time() - start_time > max_wait_time:
-            print(f"\nMax wait time reached. Download not completed in {
-                  directory}.\n")
+            print(f"\nMax wait time reached. "
+                  f"Download not completed in {directory}.\n")
             return False, None
 
         time.sleep(sleep_time)
