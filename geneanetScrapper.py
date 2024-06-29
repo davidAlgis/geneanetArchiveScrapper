@@ -6,7 +6,7 @@ from individu import Individu
 import utils
 from datetime import datetime
 from tqdm import tqdm
-
+import re
 
 class GeneanetScrapper():
     def __init__(self, individu_folder, file_path_to_template_individu, headless=True):
@@ -110,7 +110,7 @@ class GeneanetScrapper():
         self.process_individus()
 
     def process_individus(self):
-        for individu in self.individus:
+        for individu in tqdm(self.individus):
             last_name = individu.get_last_name()
             first_name = individu.get_first_name()
             date_naissance = individu.get_birth_date()
@@ -133,14 +133,51 @@ class GeneanetScrapper():
                 folder_individu_path = f"{original_folder_individu_path} - {i}"
                 i += 1
 
+            # Move src archives if necessary
+            self.move_src_archive(individu, folder_individu_path, last_name, first_name)
+
             GeneanetItemToMd(individu, folder_individu_path, self.file_path_to_template_individu)
+
+    def move_src_archive(self, individu, folder_individu_path, last_name, first_name):
+        for src_attr in ['death_src', 'wedding_src', 'birth_src']:
+            src = getattr(individu, src_attr)
+            if src and "TOMOVE(" in src:
+                # Extract the path inside the parentheses
+                path_to_move = re.search(r"TOMOVE\((.*?)\)", src).group(1)
+                # Move the file to the individual's folder
+                moved_file_path = utils.move_file_to_folder(folder_individu_path, path_to_move)
+
+                if moved_file_path:
+                    # Determine the type of archive
+                    if src_attr == 'birth_src':
+                        type_archive = "Naissance"
+                    elif src_attr == 'death_src':
+                        type_archive = "Deces"
+                    elif src_attr == 'wedding_src':
+                        type_archive = "Mariage"
+                    else:
+                        type_archive = "Autre"
+
+                    # Extract the file extension
+                    file_extension = os.path.splitext(moved_file_path)[1]
+                    
+                    # New filename
+                    new_filename = f"Archive {type_archive} {last_name} {first_name}{file_extension}"
+                    new_filename = utils.to_upper_camel_case(new_filename)
+                    # Rename the file
+                    renamed_file_path = utils.rename_file(folder_individu_path, os.path.basename(moved_file_path), new_filename)
+                    
+                    if renamed_file_path:
+                        # Update the src attribute in individu
+                        new_src = src.replace(f"TOMOVE({path_to_move})", f"![]({new_filename})")
+                        setattr(individu, src_attr, new_src)
 
 
     def merge_individus(self):
         merged_individus = []
         visited = set()
 
-        for i, individu in enumerate(self.individus):
+        for i, individu in tqdm(enumerate(self.individus)):
             if i in visited:
                 continue
 
@@ -236,7 +273,7 @@ class GeneanetScrapper():
                 if (typeArchive == "Décès"):
                     if (src_archive != ""):
                         individu_j.set_death_src(
-                            f"TOMOVE ({src_archive})")
+                            f"TOMOVE({src_archive})")
                     else:
                         if (content_acte != ""):
                             individu_j.set_death_notes(
@@ -247,7 +284,7 @@ class GeneanetScrapper():
                 elif (typeArchive == "Mariage"):
                     if (src_archive != ""):
                         individu_j.set_wedding_src(
-                            f"TOMOVE ({src_archive})")
+                            f"TOMOVE({src_archive})")
                     else:
                         if (content_acte != ""):
                             individu_j.set_wedding_notes(
@@ -258,7 +295,7 @@ class GeneanetScrapper():
                 elif (typeArchive == "Naissance"):
                     if (src_archive != ""):
                         individu_j.set_birth_src(
-                            f"TOMOVE ({src_archive})")
+                            f"TOMOVE({src_archive})")
                     else:
                         if (content_acte != ""):
                             individu_j.set_birth_notes(

@@ -110,11 +110,13 @@ def move_file_to_folder(folder_path, file_path_to_move):
             shutil.copy2(file_path_to_move, destination_file_path)
             # If the copy operation is successful, remove the original file
             os.remove(file_path_to_move)
+            return destination_file_path
         except Exception as e:
             print(f"An error occurred while moving the file: {e}")
     else:
         print(f"The file {file_path_to_move}"
               "does not exist in the download path.")
+    return None
 
 
 def wait_for_download(directory, max_wait_time=10, sleep_time=0.2, size_check_retries=5):
