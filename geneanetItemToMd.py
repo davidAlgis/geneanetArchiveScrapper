@@ -113,9 +113,7 @@ class GeneanetItemToMd:
         # Write the content back using UTF-8 encoding
         with open(self.filepath, "w", encoding="utf-8") as f:
             f.write(content)
-
     def add_other(self, data):
         data = "\n" + data + "\n"
-        self.individu.other_informations.append(data)
         with open(self.filepath, "a", encoding="utf-8") as f:
             f.write(data)
