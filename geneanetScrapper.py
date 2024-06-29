@@ -172,7 +172,6 @@ class GeneanetScrapper():
                         new_src = src.replace(f"TOMOVE({path_to_move})", f"![]({new_filename})")
                         setattr(individu, src_attr, new_src)
 
-
     def merge_individus(self):
         merged_individus = []
         visited = set()
@@ -254,84 +253,90 @@ class GeneanetScrapper():
     def handle_item(self, j):
         css_line_j = f"a.ligne-resultat:nth-child({j})"
         if self.driver.is_element_present(css_line_j):
-            isArchive, typeArchive = self.isArchiveLine(css_line_j)
-            if (isArchive):
-                last_name, first_name = self.getNameLine(css_line_j)
-                last_name = utils.sanitize_path_component(last_name)
-                first_name = utils.sanitize_path_component(first_name)
-                places = self.getPlaceLine(css_line_j)
-                dates = self.get_associated_date(css_line_j)
+            type_line, type_archive = self.retrieve_type_line(css_line_j)
+            if (type_line == ""):
+                return
+            last_name, first_name = self.getNameLine(css_line_j)
+            last_name = utils.sanitize_path_component(last_name)
+            first_name = utils.sanitize_path_component(first_name)
+            places = self.getPlaceLine(css_line_j)
+            dates = self.get_associated_date(css_line_j)
 
-                # Create an Individu object and set its properties
-                individu_j = Individu(last_name, first_name)
+            # Create an Individu object and set its properties
+            individu_j = Individu(last_name, first_name)
+            if (type_line == "Archive"):
+                self.handle_archive_line(css_line_j, type_archive, last_name, first_name, places,dates,  individu_j)
 
-                content_acte, src_acte, src_archive = self.get_associated_archive(
-                    css_line_j, last_name, first_name, typeArchive)
-                # name_image = ""
-                # if (len(src_archive.split('\\')) > 0):
-                #     name_image = src_archive.split('\\')[-1]
-                if (typeArchive == "Décès"):
-                    if (src_archive != ""):
-                        individu_j.set_death_src(
-                            f"TOMOVE({src_archive})")
-                    else:
-                        if (content_acte != ""):
-                            individu_j.set_death_notes(
-                                content_acte)
-                        if (src_acte != ""):
-                            individu_j.set_death_src(
-                                src_acte)
-                elif (typeArchive == "Mariage"):
-                    if (src_archive != ""):
-                        individu_j.set_wedding_src(
-                            f"TOMOVE({src_archive})")
-                    else:
-                        if (content_acte != ""):
-                            individu_j.set_wedding_notes(
-                                content_acte)
-                        if (src_acte != ""):
-                            individu_j.set_wedding_src(
-                                src_acte)
-                elif (typeArchive == "Naissance"):
-                    if (src_archive != ""):
-                        individu_j.set_birth_src(
-                            f"TOMOVE({src_archive})")
-                    else:
-                        if (content_acte != ""):
-                            individu_j.set_birth_notes(
-                                content_acte)
-                        if (src_acte != ""):
-                            individu_j.set_birth_src(
-                                src_acte)
-                elif ("Autres" in typeArchive):
-                    content_autre = f"# {typeArchive}\n\n"
-                    if (len(places) > 0):
-                        type_place, place = places[0]
-                        content_autre += f"- __Lieu évenement__ :{place}\n"
+            for place_pair in places:
+                place, type_place = place_pair
+                if (type_place == "Décès"):
+                    individu_j.set_death_place(place)
+                elif (type_place == "Mariage"):
+                    individu_j.set_wedding_place(place)
+                elif (type_place == "Naissance"):
+                    individu_j.set_birth_place(place)
+            for date_pair in dates:
+                type_date, date = date_pair
+                if (type_date == "Décès"):
+                    individu_j.set_death_date(date)
+                elif (type_date == "Mariage"):
+                    individu_j.set_wedding_date(date)
+                elif (type_date == "Naissance"):
+                    individu_j.set_birth_date(date)
 
-                    if (len(dates) > 0):
-                        type_date, date = places[0]
-                        content_autre += f"- __Date évenement__ :{date}\n"
-                    individu_j.add_other(content_autre)
+            self.individus.append(individu_j)
+              
 
-                for place_pair in places:
-                    place, type_place = place_pair
-                    if (type_place == "Décès"):
-                        individu_j.set_death_place(place)
-                    elif (type_place == "Mariage"):
-                        individu_j.set_wedding_place(place)
-                    elif (type_place == "Naissance"):
-                        individu_j.set_birth_place(place)
-                for date_pair in dates:
-                    type_date, date = date_pair
-                    if (type_date == "Décès"):
-                        individu_j.set_death_date(date)
-                    elif (type_date == "Mariage"):
-                        individu_j.set_wedding_date(date)
-                    elif (type_date == "Naissance"):
-                        individu_j.set_birth_date(date)
+    def handle_archive_line(self, css_line_j, type_archive, last_name, first_name, places, dates, individu_j):
 
-                self.individus.append(individu_j)
+
+        content_acte, src_acte, src_archive = self.get_associated_archive(
+            css_line_j, last_name, first_name, type_archive)
+        if (type_archive == "Décès"):
+            if (src_archive != ""):
+                individu_j.set_death_src(
+                    f"TOMOVE({src_archive})")
+            else:
+                if (content_acte != ""):
+                    individu_j.set_death_notes(
+                        content_acte)
+                if (src_acte != ""):
+                    individu_j.set_death_src(
+                        src_acte)
+        elif (type_archive == "Mariage"):
+            if (src_archive != ""):
+                individu_j.set_wedding_src(
+                    f"TOMOVE({src_archive})")
+            else:
+                if (content_acte != ""):
+                    individu_j.set_wedding_notes(
+                        content_acte)
+                if (src_acte != ""):
+                    individu_j.set_wedding_src(
+                        src_acte)
+        elif (type_archive == "Naissance"):
+            if (src_archive != ""):
+                individu_j.set_birth_src(
+                    f"TOMOVE({src_archive})")
+            else:
+                if (content_acte != ""):
+                    individu_j.set_birth_notes(
+                        content_acte)
+                if (src_acte != ""):
+                    individu_j.set_birth_src(
+                        src_acte)
+        elif ("Autres" in type_archive):
+            content_autre = f"# {type_archive}\n\n"
+            if (len(places) > 0):
+                type_place, place = places[0]
+                content_autre += f"- __Lieu évenement__ :{place}\n"
+
+            if (len(dates) > 0):
+                type_date, date = places[0]
+                content_autre += f"- __Date évenement__ :{date}\n"
+            individu_j.add_other(content_autre)
+
+
 
     def get_associated_date(self, css_line):
         css_date = css_line + " > div:nth-child(2) > div:nth-child(2)"
@@ -388,17 +393,6 @@ class GeneanetScrapper():
             if (has_complete_download):
                 file_download_path = os.path.join(
                     self.download_path, file_download)
-                # utils.move_file_to_folder(
-                #     folder_individu_path, file_download_path)
-                # file_extension = os.path.splitext(file_download)[1]
-                # if ("Autre" in type_archive):
-                #     type_archive = "Autre"
-                # new_file_name = "Archive" + ' ' + type_archive + ' ' + \
-                #     last_name + ' ' + first_name + ' ' + file_extension
-                # new_file_name = utils.to_upper_camel_case(new_file_name)
-                # new_file_name = utils.rename_file(
-                #     folder_individu_path, file_download, new_file_name)
-                # src_archive = new_file_name
         if (self.driver.is_element_visible(css_releve_collab)):
             css_content_acte = ".acte-content"
             css_src_acte = ".releve-detail-container > div:nth-child(2)"
@@ -463,7 +457,7 @@ class GeneanetScrapper():
                 f"li:nth-child({index_src}) > a:nth-child(1)"
         return src_acte
 
-    def isArchiveLine(self, css_line):
+    def retrieve_type_line(self, css_line):
         css_line_info = css_line + " > div:nth-child(2) > div:nth-child(1)"
         typeLine = ""
         if self.driver.is_element_present(css_line_info):
@@ -481,8 +475,8 @@ class GeneanetScrapper():
             else:
                 text_archive = typeLine.replace('\n', ' ')
                 typeArchive = f"Autres - {text_archive}"
-            return (True, typeArchive)
-        return (False, "")
+            return ("Archive", typeArchive)
+        return ("", "")
 
     def getNameLine(self, css_line):
         css_line_info = css_line + " > div:nth-child(2) > div:nth-child(1)"
