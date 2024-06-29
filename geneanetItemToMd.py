@@ -110,6 +110,9 @@ class GeneanetItemToMd:
         content = content.replace(
             existing_content, f"__{fieldName}__ : {fieldContent}\n")
 
+        # Ensure no extra lines are added by using consistent line endings
+        content = content.replace("\r\n", "\n").replace("\n\n", "\n")
+
         # Write the content back using UTF-8 encoding
         with open(self.filepath, "w", encoding="utf-8") as f:
             f.write(content)
