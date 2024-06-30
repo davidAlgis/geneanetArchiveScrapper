@@ -662,7 +662,13 @@ class GeneanetScrapper():
         else:
             css_click_on_next_page = ".pagination > li:nth-child(7) > a:nth-child(1)"
 
+        css_close_pop_up = "a.close-reveal-modal:nth-child(3)"
+        if (self.driver.is_element_visible(css_close_pop_up)):
+            close_button = self.driver.find_element(css_close_pop_up)
+            close_button.click()
+
         next_page_button = self.driver.find_element(css_click_on_next_page)
+
         next_page_button.click()
         self.current_page_nbr += 1
 
