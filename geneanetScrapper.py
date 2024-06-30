@@ -106,7 +106,6 @@ class GeneanetScrapper():
         for i in tqdm(range(totalPageNbr), desc="Page Loop"):
             for j in tqdm(range(maxNbrItemInPage), desc="Item Loop", leave=False):
                 self.handle_item(j)
-            break
             self.clickOnNextPage()
 
         self.merge_individus()
