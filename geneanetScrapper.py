@@ -120,11 +120,13 @@ class GeneanetScrapper():
             except ValueError:
                 date_naissance = None
 
-            folder_individu = utils.to_upper_camel_case(last_name + ' ' + first_name)
+            folder_individu = utils.to_upper_camel_case(
+                last_name + ' ' + first_name)
             if date_naissance is not None:
                 folder_individu += f" - {date_naissance.year}"
 
-            folder_individu_path = os.path.join(self.individu_folder, folder_individu)
+            folder_individu_path = os.path.join(
+                self.individu_folder, folder_individu)
 
             # Check if folder exists, and if so, add a suffix
             i = 1
@@ -134,9 +136,11 @@ class GeneanetScrapper():
                 i += 1
 
             # Move src archives if necessary
-            self.move_src_archive(individu, folder_individu_path, last_name, first_name)
+            self.move_src_archive(
+                individu, folder_individu_path, last_name, first_name)
 
-            GeneanetItemToMd(individu, folder_individu_path, self.file_path_to_template_individu)
+            GeneanetItemToMd(individu, folder_individu_path,
+                             self.file_path_to_template_individu)
 
     def move_src_archive(self, individu, folder_individu_path, last_name, first_name):
         for src_attr in ['death_src', 'wedding_src', 'birth_src']:
@@ -145,7 +149,8 @@ class GeneanetScrapper():
                 # Extract the path inside the parentheses
                 path_to_move = re.search(r"TOMOVE\((.*?)\)", src).group(1)
                 # Move the file to the individual's folder
-                moved_file_path = utils.move_file_to_folder(folder_individu_path, path_to_move)
+                moved_file_path = utils.move_file_to_folder(
+                    folder_individu_path, path_to_move)
 
                 if moved_file_path:
                     # Determine the type of archive
@@ -160,16 +165,19 @@ class GeneanetScrapper():
 
                     # Extract the file extension
                     file_extension = os.path.splitext(moved_file_path)[1]
-                    
+
                     # New filename
-                    new_filename = f"Archive {type_archive} {last_name} {first_name}{file_extension}"
+                    new_filename = f"Archive {type_archive} {last_name}"
+                    f"{first_name}{file_extension}"
                     new_filename = utils.to_upper_camel_case(new_filename)
                     # Rename the file
-                    renamed_file_path = utils.rename_file(folder_individu_path, os.path.basename(moved_file_path), new_filename)
-                    
+                    renamed_file_path = utils.rename_file(
+                        folder_individu_path, os.path.basename(moved_file_path), new_filename)
+
                     if renamed_file_path:
                         # Update the src attribute in individu
-                        new_src = src.replace(f"TOMOVE({path_to_move})", f"![]({new_filename})")
+                        new_src = src.replace(
+                            f"TOMOVE({path_to_move})", f"![]({new_filename})")
                         setattr(individu, src_attr, new_src)
 
     def merge_individus(self):
@@ -253,7 +261,7 @@ class GeneanetScrapper():
     def handle_item(self, j):
         css_line_j = f"a.ligne-resultat:nth-child({j})"
         if self.driver.is_element_present(css_line_j):
-            type_line, type_archive = self.retrieve_type_line(css_line_j)
+            type_line, sub_type = self.retrieve_type_line(css_line_j)
             if (type_line == ""):
                 return
             last_name, first_name = self.getNameLine(css_line_j)
@@ -265,7 +273,11 @@ class GeneanetScrapper():
             # Create an Individu object and set its properties
             individu_j = Individu(last_name, first_name)
             if (type_line == "Archive"):
-                self.handle_archive_line(css_line_j, type_archive, last_name, first_name, places,dates,  individu_j)
+                self.handle_archive_line(
+                    css_line_j, sub_type, last_name, first_name, places, dates, individu_j)
+            elif (type_line == "Presse"):
+                self.handle_presse_line(
+                    css_line_j, sub_type, last_name, first_name, places, dates, individu_j)
 
             for place_pair in places:
                 place, type_place = place_pair
@@ -285,11 +297,8 @@ class GeneanetScrapper():
                     individu_j.set_birth_date(date)
 
             self.individus.append(individu_j)
-              
 
     def handle_archive_line(self, css_line_j, type_archive, last_name, first_name, places, dates, individu_j):
-
-
         content_acte, src_acte, src_archive = self.get_associated_archive(
             css_line_j, last_name, first_name, type_archive)
         if (type_archive == "Décès"):
@@ -336,7 +345,93 @@ class GeneanetScrapper():
                 content_autre += f"- __Date évenement__ :{date}\n"
             individu_j.add_other(content_autre)
 
+    def handle_presse_line(self, css_line_j, type_presse, last_name, first_name, places, dates, individu_j):
+        src_press, file_download_path = self.get_associated_presse(
+            css_line_j, last_name, first_name)
 
+        content_autre = f"# {type_presse}\n\n"
+        if (len(places) > 0):
+            type_place, place = places[0]
+            content_autre += f"- __Lieu évenement__ :{place}\n"
+
+        if (len(dates) > 0):
+            type_date, date = places[0]
+            content_autre += f"- __Date évenement__ :{date}\n"
+
+        if (file_download_path != ""):
+            content_autre += f"TOMOVE({file_download_path})\n"
+        if (src_press != ""):
+            content_autre += f"- __Source__ : {src_press}\n"
+
+        individu_j.add_other(content_autre)
+
+    def get_associated_presse(self, css_line_j, last_name, first_name):
+        css_type_press = css_line_j + \
+            " > div:nth-child(1) > div:nth-child(1) > img:nth-child(1)"
+        is_image = self.driver.is_element_visible(css_type_press)
+        src_press = ""
+        file_download_path = ""
+        if (is_image):
+            link_to_new_page = self.driver.get_attribute(
+                css_line_j, "href")
+            self.driver.switch_to.new_window(link_to_new_page)
+            self.driver.open(link_to_new_page)
+            # It automatically download when open the page
+            # css_download = "#download"
+            # time_check = 0
+            # time_out = 20
+            # time_wait_between_2_check = 0.1
+            # while (self.driver.is_element_visible(css_download) is False):
+            #     time_check += time_wait_between_2_check
+            #     self.driver.sleep(time_wait_between_2_check)
+            #     if (time_check > time_out):
+            #         print(
+            #             "\nUnable to found download button "
+            #             f" text for {last_name} {first_name} with css : {css_line_j}.")
+            #         "Unknown windows, we close it.\n"
+            #         break
+
+            # if (self.driver.is_element_visible(css_download)):
+            # self.driver.click(css_download)
+            has_complete_download, file_download = utils.wait_for_download(
+                self.download_path, 20)
+            if (has_complete_download):
+                file_download_path = os.path.join(
+                    self.download_path, file_download)
+            # print("close")
+            self.driver.close()
+            self.driver.switch_to.window(
+                self.driver.window_handles[0])
+        else:
+            css_button_popup = ".button-container > a:nth-child(1)"
+            self.driver.click(css_line_j)
+            if (self.driver.is_element_visible(css_button_popup)):
+                link_to_new_page = self.driver.get_attribute(
+                    css_button_popup, "href")
+                self.driver.switch_to.new_window(link_to_new_page)
+                self.driver.open(link_to_new_page)
+
+                css_new_page = "body"
+                time_check = 0
+                time_out = 20
+                time_wait_between_2_check = 0.1
+                while (self.driver.is_element_visible(css_new_page) is False):
+                    time_check += time_wait_between_2_check
+                    self.driver.sleep(time_wait_between_2_check)
+                    if (time_check > time_out):
+                        print(
+                            "\nUnable to load page "
+                            f" text for {last_name} {first_name} with css : {css_line_j}.")
+                        "Unknown windows, we close it.\n"
+                        break
+                if (self.driver.is_element_visible(css_new_page)):
+                    src_press = self.driver.get_current_url()
+
+                self.driver.close()
+                self.driver.switch_to.window(
+                    self.driver.window_handles[0])
+
+        return (src_press, file_download_path)
 
     def get_associated_date(self, css_line):
         css_date = css_line + " > div:nth-child(2) > div:nth-child(2)"
@@ -476,6 +571,8 @@ class GeneanetScrapper():
                 text_archive = typeLine.replace('\n', ' ')
                 typeArchive = f"Autres - {text_archive}"
             return ("Archive", typeArchive)
+        elif ("Presse" in typeLine):
+            return ("Presse", typeLine)
         return ("", "")
 
     def getNameLine(self, css_line):
@@ -521,7 +618,10 @@ class GeneanetScrapper():
         # TODO it might not work with a low page number...
         # maybe reduce the number li:nth-child(7) until it found some thing
         css_total_page_nbr = ".pagination > li:nth-child(7) > a:nth-child(1)"
-        self.total_page_nbr = int(self.driver.get_text(css_total_page_nbr))
+        if (self.driver.is_element_visible(css_total_page_nbr)):
+            self.total_page_nbr = int(self.driver.get_text(css_total_page_nbr))
+        else:
+            self.total_page_nbr = 1
         return self.total_page_nbr
 
     def clickOnNextPage(self):
