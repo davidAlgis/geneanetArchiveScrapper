@@ -584,7 +584,7 @@ class GeneanetScrapper():
         if self.driver.is_element_present(css_line_info):
             typeLine = self.driver.get_text(css_line_info)
 
-        if ("Archive" in typeLine):
+        if ("Archives : " in typeLine):
             if ("Mariage" in typeLine):
                 typeArchive = "Mariage"
             elif ("Naissance" in typeLine):
@@ -597,7 +597,7 @@ class GeneanetScrapper():
                 text_archive = typeLine.replace('\n', ' ')
                 typeArchive = f"Autres - {text_archive}"
             return ("Archive", typeArchive)
-        elif ("Presse" in typeLine):
+        elif ("Presse : " in typeLine):
             return ("Presse", typeLine)
         return ("", "")
 
