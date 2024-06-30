@@ -366,7 +366,7 @@ class GeneanetScrapper():
                 content_autre += f"- __Lieu évenement__ :{place}\n"
 
             if (len(dates) > 0):
-                type_date, date = places[0]
+                type_date, date = dates[0]
                 content_autre += f"- __Date évenement__ :{date}\n"
             individu_j.add_other(content_autre)
 
@@ -380,7 +380,7 @@ class GeneanetScrapper():
             content_autre += f"- __Lieu évenement__ :{place}\n"
 
         if (len(dates) > 0):
-            type_date, date = places[0]
+            type_date, date = dates[0]
             content_autre += f"- __Date évenement__ :{date}\n"
 
         if (file_download_path != ""):
@@ -455,6 +455,10 @@ class GeneanetScrapper():
                 self.driver.close()
                 self.driver.switch_to.window(
                     self.driver.window_handles[0])
+                css_close_pop_up = "a.close-reveal-modal:nth-child(3)"
+                if (self.driver.is_element_visible(css_close_pop_up)):
+                    close_button = self.driver.find_element(css_close_pop_up)
+                    close_button.click()
 
         return (src_press, file_download_path)
 
