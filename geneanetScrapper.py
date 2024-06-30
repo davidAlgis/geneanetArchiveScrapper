@@ -8,6 +8,7 @@ from datetime import datetime
 from tqdm import tqdm
 import re
 
+
 class GeneanetScrapper():
     def __init__(self, individu_folder, file_path_to_template_individu, headless=True):
         self.path, filename = os.path.split(os.path.realpath(__file__))
@@ -24,7 +25,10 @@ class GeneanetScrapper():
     def _start_browser(self):
         print("Start browser...")
         self.driver = Driver(browser="firefox",
-                             headless=True, locale_code='fr')
+                             headless=False, locale_code='fr')
+
+    def quit(self):
+        self.driver.quit()
 
     def connect(self, id, password):
         self._start_browser()
@@ -77,12 +81,12 @@ class GeneanetScrapper():
         print("Has success to connect to Geneanet.net")
         return True
 
-    def searchFamilyName(self, name, first_name = ""):
+    def searchFamilyName(self, name, first_name=""):
         css_family_name = 'div.row:nth-child(5) > div:nth-child(1) > input:nth-child(1)'
         family_name_field = self.driver.find_element(css_family_name)
         family_name_field.send_keys(name)
-        
-        if(first_name != ""):
+
+        if (first_name != ""):
             css_first_name = "div.row:nth-child(5) > div:nth-child(2) > input:nth-child(1)"
             first_name_field = self.driver.find_element(css_first_name)
             first_name_field.send_keys(first_name)
@@ -106,8 +110,9 @@ class GeneanetScrapper():
             self.clickOnNextPage()
 
         self.merge_individus()
-        
+
         self.process_individus()
+        print("end processing search.")
 
     def process_individus(self):
         for individu in tqdm(self.individus):
@@ -143,42 +148,63 @@ class GeneanetScrapper():
                              self.file_path_to_template_individu)
 
     def move_src_archive(self, individu, folder_individu_path, last_name, first_name):
-        for src_attr in ['death_src', 'wedding_src', 'birth_src']:
+        src_attributes = ['death_src', 'wedding_src', 'birth_src']
+
+        # Handle src attributes
+        for src_attr in src_attributes:
             src = getattr(individu, src_attr)
             if src and "TOMOVE(" in src:
-                # Extract the path inside the parentheses
-                path_to_move = re.search(r"TOMOVE\((.*?)\)", src).group(1)
-                # Move the file to the individual's folder
-                moved_file_path = utils.move_file_to_folder(
-                    folder_individu_path, path_to_move)
+                self.process_tomove(src, src_attr, individu,
+                                    folder_individu_path, last_name, first_name)
 
-                if moved_file_path:
-                    # Determine the type of archive
-                    if src_attr == 'birth_src':
-                        type_archive = "Naissance"
-                    elif src_attr == 'death_src':
-                        type_archive = "Deces"
-                    elif src_attr == 'wedding_src':
-                        type_archive = "Mariage"
-                    else:
-                        type_archive = "Autre"
+        # Handle other_informations
+        for index, info in enumerate(individu.other_informations):
+            if "TOMOVE(" in info:
+                self.process_tomove(info, 'other_informations', individu,
+                                    folder_individu_path, last_name, first_name, index=index)
 
-                    # Extract the file extension
-                    file_extension = os.path.splitext(moved_file_path)[1]
+    def process_tomove(self, src, src_attr, individu, folder_individu_path, last_name, first_name, index=None):
+        # Extract the path inside the parentheses
+        path_to_move = re.search(r"TOMOVE\((.*?)\)", src).group(1)
+        # Move the file to the individual's folder
+        moved_file_path = utils.move_file_to_folder(
+            folder_individu_path, path_to_move)
 
-                    # New filename
-                    new_filename = f"Archive {type_archive} {last_name}"
-                    f"{first_name}{file_extension}"
-                    new_filename = utils.to_upper_camel_case(new_filename)
-                    # Rename the file
-                    renamed_file_path = utils.rename_file(
-                        folder_individu_path, os.path.basename(moved_file_path), new_filename)
+        if moved_file_path:
 
-                    if renamed_file_path:
-                        # Update the src attribute in individu
-                        new_src = src.replace(
-                            f"TOMOVE({path_to_move})", f"![]({new_filename})")
-                        setattr(individu, src_attr, new_src)
+            # Determine the type of archive
+            if src_attr == 'birth_src':
+                type_archive = "Naissance"
+                new_filename = f"Archive {type_archive}"
+            elif src_attr == 'death_src':
+                type_archive = "Deces"
+                new_filename = f"Archive {type_archive}"
+            elif src_attr == 'wedding_src':
+                type_archive = "Mariage"
+                new_filename = f"Archive {type_archive}"
+            else:
+                new_filename = "Presse"
+                type_archive = "Autre"
+
+            # Extract the file extension
+            file_extension = os.path.splitext(moved_file_path)[1]
+
+            # New filename
+            new_filename += f" {last_name} {first_name}{file_extension}"
+            new_filename = utils.to_upper_camel_case(new_filename)
+
+            # Rename the file
+            renamed_file_path = utils.rename_file(
+                folder_individu_path, os.path.basename(moved_file_path), new_filename)
+
+            if renamed_file_path:
+                # Update the src attribute in individu
+                new_src = src.replace(
+                    f"TOMOVE({path_to_move})", f"![]({new_filename})")
+                if src_attr == 'other_informations' and index is not None:
+                    individu.other_informations[index] = new_src
+                else:
+                    setattr(individu, src_attr, new_src)
 
     def merge_individus(self):
         merged_individus = []
@@ -425,7 +451,7 @@ class GeneanetScrapper():
                         "Unknown windows, we close it.\n"
                         break
                 if (self.driver.is_element_visible(css_new_page)):
-                    src_press = self.driver.get_current_url()
+                    src_press = self.driver.current_url
 
                 self.driver.close()
                 self.driver.switch_to.window(
