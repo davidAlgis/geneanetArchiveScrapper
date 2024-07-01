@@ -350,9 +350,9 @@ class GeneanetScrapper():
             if (src_archive != ""):
                 content_autre+=f"- __Source__ : TOMOVE({src_archive})\n"
             if (content_acte != ""):
-                content_autre+=- f"- __Note__ : {content_acte}\n"
+                content_autre+= f"- __Note__ : {content_acte}\n"
             if (src_acte != ""):
-                content_autre+=- f"- __Source__ : {src_acte}\n"
+                content_autre+= f"- __Source__ : {src_acte}\n"
             individu_j.add_other(content_autre)
 
     def handle_presse_line(self, css_line_j, type_presse, last_name, first_name, places, dates, individu_j):
@@ -491,6 +491,7 @@ class GeneanetScrapper():
             # there are 2 types of pages here
             # css_src_acte_2 = "#expertsys-sources-modal-openlink"
             css_src_acte_2 = "tr.not-printable"
+            css_src_acte_3 = "div.large-6:nth-child(2) > a:nth-child(3)"
             if self.driver.is_element_present(css_content_acte):
                 content_acte = self.driver.get_text(css_content_acte)
                 content_acte = "\n" + \
@@ -517,10 +518,41 @@ class GeneanetScrapper():
                     src_acte = self.find_src_in_archive(
                         src_acte, last_name, first_name, css_line_j)
                 else:
-                    print(f"\nUnable to get any the source of the acte of "
-                          f"{last_name} {first_name} with css : {css_line_j}."
-                          f"\nWe found neither this css"
-                          f"{css_src_acte} nor this css {css_src_acte_2}")
+                    if (self.driver.is_element_present(css_src_acte_3)):
+                        link_to_new_page_2 = self.driver.get_attribute(
+                            css_src_acte_3, "href")
+                        self.driver.switch_to.new_window(link_to_new_page_2)
+                        self.driver.open(link_to_new_page_2)
+                        time_wait_between_2_check = 0.1
+                        while (self.driver.is_element_visible(css_download) is False):
+                            time_check += time_wait_between_2_check
+                            self.driver.sleep(time_wait_between_2_check)
+                            if (time_check > time_out):
+                                print(
+                                    "\nUnable to found download button"
+                                    f" text for {last_name} {first_name} with css : {css_line_j}.")
+                                "Unknown windows, we close it.\n"
+                                self.driver.close()
+                                self.driver.switch_to.window(
+                                    self.driver.window_handles[1])
+
+                        if (self.driver.is_element_visible(css_download)):
+                            self.driver.click(css_download)
+                            has_complete_download, file_download = utils.wait_for_download(
+                                self.download_path, 20)
+                            if (has_complete_download):
+
+                                src_acte_file_download_path = os.path.join(
+                                    self.download_path, file_download)
+                                src_acte = f"TOMOVE({src_acte_file_download_path})" 
+                        self.driver.close()
+                        self.driver.switch_to.window(
+                            self.driver.window_handles[1])
+                    else:
+                        print(f"\nUnable to get any the source of the acte of "
+                              f"{last_name} {first_name} with css : {css_line_j}."
+                              f"\nWe found neither this css"
+                              f"{css_src_acte} nor this css {css_src_acte_2} and nor css {css_src_acte_3}")
 
         self.driver.close()
         self.driver.switch_to.window(
