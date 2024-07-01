@@ -121,6 +121,7 @@ def move_file_to_folder(folder_path, file_path_to_move):
 
 def wait_for_download(directory, max_wait_time=10, sleep_time=0.2, size_check_retries=5):
     start_time = time.time()
+    time.sleep(0.5)
     while True:
         files_in_directory = os.listdir(directory)
         if files_in_directory:
