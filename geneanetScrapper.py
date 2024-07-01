@@ -164,7 +164,7 @@ class GeneanetScrapper():
 
     def process_tomove(self, src, src_attr, individu, folder_individu_path, last_name, first_name, index=None):
         # Extract the path inside the parentheses
-        path_to_move = re.search(r"TOMOVE\((.*?)\)", src).group(1)
+        path_to_move = re.search(r'TOMOVE\(((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\)', src).group(1)
         # Move the file to the individual's folder
         moved_file_path = utils.move_file_to_folder(
             folder_individu_path, path_to_move)
@@ -206,6 +206,7 @@ class GeneanetScrapper():
                     setattr(individu, src_attr, new_src)
 
     def merge_individus(self):
+        print(f"Merge individus (start with {len(self.individus)} individus)...")
         merged_individus = []
         visited = set()
 
@@ -237,49 +238,27 @@ class GeneanetScrapper():
             visited.add(i)
 
         self.individus = merged_individus
+        print(f"Merging has finish (end with {len(self.individus)} individus)")
 
     def merge_duplicates(self, duplicates):
-        merged = duplicates[0]
-        for individu in duplicates[1:]:
-            if not merged.sexe and individu.sexe:
-                merged.set_sex(individu.sexe)
-            if not merged.profession and individu.profession:
-                merged.set_profession(individu.profession)
-            if not merged.civil_state_notes and individu.civil_state_notes:
-                merged.set_civil_state_notes(individu.civil_state_notes)
-            if not merged.civil_state_src and individu.civil_state_src:
-                merged.set_civil_state_src(individu.civil_state_src)
-            if not merged.birth_date and individu.birth_date:
-                merged.set_birth_date(individu.birth_date)
-            if not merged.birth_place and individu.birth_place:
-                merged.set_birth_place(individu.birth_place)
-            if not merged.father and individu.father:
-                merged.set_father(individu.father)
-            if not merged.mother and individu.mother:
-                merged.set_mother(individu.mother)
-            if not merged.birth_notes and individu.birth_notes:
-                merged.set_birth_notes(individu.birth_notes)
-            if not merged.birth_src and individu.birth_src:
-                merged.set_birth_src(individu.birth_src)
-            if not merged.death_date and individu.death_date:
-                merged.set_death_date(individu.death_date)
-            if not merged.death_place and individu.death_place:
-                merged.set_death_place(individu.death_place)
-            if not merged.death_notes and individu.death_notes:
-                merged.set_death_notes(individu.death_notes)
-            if not merged.death_src and individu.death_src:
-                merged.set_death_src(individu.death_src)
-            if not merged.partner and individu.partner:
-                merged.set_partner(individu.partner)
-            if not merged.wedding_date and individu.wedding_date:
-                merged.set_wedding_date(individu.wedding_date)
-            if not merged.wedding_place and individu.wedding_place:
-                merged.set_wedding_place(individu.wedding_place)
-            if not merged.wedding_notes and individu.wedding_notes:
-                merged.set_wedding_notes(individu.wedding_notes)
-            if not merged.wedding_src and individu.wedding_src:
-                merged.set_wedding_src(individu.wedding_src)
-            merged.other_informations.extend(individu.other_informations)
+        merged = Individu(duplicates[0].last_name, duplicates[0].first_name)
+
+        for field in ['sexe', 'birth_date', 'birth_place', 'father', 'mother', 'death_date', 'death_place', 'wedding_date', 'wedding_place']:
+            for individu in duplicates:
+                if getattr(individu, field):
+                    setattr(merged, field, getattr(individu, field))
+                    break
+
+        for field in ['profession', 'civil_state_notes', 'civil_state_src', 'birth_notes', 'birth_src', 'death_notes', 'death_src', 'wedding_notes', 'wedding_src']:
+            non_empty_values = [getattr(individu, field) for individu in duplicates if getattr(individu, field)]
+            if non_empty_values:
+                merged_field_value = getattr(merged, field, "")
+                merged_field_value = "\n".join(non_empty_values) if not merged_field_value else merged_field_value + "\n" + "\n".join(non_empty_values)
+                setattr(merged, field, merged_field_value)
+
+        merged.other_informations = []
+        for individu in duplicates:
+            merged.other_informations.extend([info for info in individu.other_informations if info])
 
         return merged
 
@@ -368,6 +347,12 @@ class GeneanetScrapper():
             if (len(dates) > 0):
                 type_date, date = dates[0]
                 content_autre += f"- __Date évenement__ :{date}\n"
+            if (src_archive != ""):
+                content_autre+=f"- __Source__ : TOMOVE({src_archive})\n"
+            if (content_acte != ""):
+                content_autre+=- f"- __Note__ : {content_acte}\n"
+            if (src_acte != ""):
+                content_autre+=- f"- __Source__ : {src_acte}\n"
             individu_j.add_other(content_autre)
 
     def handle_presse_line(self, css_line_j, type_presse, last_name, first_name, places, dates, individu_j):
@@ -401,23 +386,6 @@ class GeneanetScrapper():
                 css_line_j, "href")
             self.driver.switch_to.new_window(link_to_new_page)
             self.driver.open(link_to_new_page)
-            # It automatically download when open the page
-            # css_download = "#download"
-            # time_check = 0
-            # time_out = 20
-            # time_wait_between_2_check = 0.1
-            # while (self.driver.is_element_visible(css_download) is False):
-            #     time_check += time_wait_between_2_check
-            #     self.driver.sleep(time_wait_between_2_check)
-            #     if (time_check > time_out):
-            #         print(
-            #             "\nUnable to found download button "
-            #             f" text for {last_name} {first_name} with css : {css_line_j}.")
-            #         "Unknown windows, we close it.\n"
-            #         break
-
-            # if (self.driver.is_element_visible(css_download)):
-            # self.driver.click(css_download)
             has_complete_download, file_download = utils.wait_for_download(
                 self.download_path, 20)
             if (has_complete_download):
