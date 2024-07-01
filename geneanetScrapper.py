@@ -164,7 +164,8 @@ class GeneanetScrapper():
 
     def process_tomove(self, src, src_attr, individu, folder_individu_path, last_name, first_name, index=None):
         # Extract the path inside the parentheses
-        path_to_move = re.search(r'TOMOVE\(((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\)', src).group(1)
+        path_to_move = re.search(
+            r'TOMOVE\(((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\)', src).group(1)
         # Move the file to the individual's folder
         moved_file_path = utils.move_file_to_folder(
             folder_individu_path, path_to_move)
@@ -206,7 +207,8 @@ class GeneanetScrapper():
                     setattr(individu, src_attr, new_src)
 
     def merge_individus(self):
-        print(f"Merge individus (start with {len(self.individus)} individus)...")
+        print(
+            f"Merge individus (start with {len(self.individus)} individus)...")
         merged_individus = []
         visited = set()
 
@@ -250,15 +252,18 @@ class GeneanetScrapper():
                     break
 
         for field in ['profession', 'civil_state_notes', 'civil_state_src', 'birth_notes', 'birth_src', 'death_notes', 'death_src', 'wedding_notes', 'wedding_src']:
-            non_empty_values = [getattr(individu, field) for individu in duplicates if getattr(individu, field)]
+            non_empty_values = [
+                getattr(individu, field) for individu in duplicates if getattr(individu, field)]
             if non_empty_values:
                 merged_field_value = getattr(merged, field, "")
-                merged_field_value = "\n".join(non_empty_values) if not merged_field_value else merged_field_value + "\n" + "\n".join(non_empty_values)
+                merged_field_value = "\n".join(
+                    non_empty_values) if not merged_field_value else merged_field_value + "\n" + "\n".join(non_empty_values)
                 setattr(merged, field, merged_field_value)
 
         merged.other_informations = []
         for individu in duplicates:
-            merged.other_informations.extend([info for info in individu.other_informations if info])
+            merged.other_informations.extend(
+                [info for info in individu.other_informations if info])
 
         return merged
 
@@ -348,11 +353,11 @@ class GeneanetScrapper():
                 type_date, date = dates[0]
                 content_autre += f"- __Date évenement__ :{date}\n"
             if (src_archive != ""):
-                content_autre+=f"- __Source__ : TOMOVE({src_archive})\n"
+                content_autre += f"- __Source__ : TOMOVE({src_archive})\n"
             if (content_acte != ""):
-                content_autre+= f"- __Note__ : {content_acte}\n"
+                content_autre += f"- __Note__ : {content_acte}\n"
             if (src_acte != ""):
-                content_autre+= f"- __Source__ : {src_acte}\n"
+                content_autre += f"- __Source__ : {src_acte}\n"
             individu_j.add_other(content_autre)
 
     def handle_presse_line(self, css_line_j, type_presse, last_name, first_name, places, dates, individu_j):
@@ -397,7 +402,16 @@ class GeneanetScrapper():
                 self.driver.window_handles[0])
         else:
             css_button_popup = ".button-container > a:nth-child(1)"
+            css_close_pop_up = "a.close-reveal-modal:nth-child(3)"
+            if (self.driver.is_element_visible(css_close_pop_up)):
+                close_button = self.driver.find_element(css_close_pop_up)
+                close_button.click()
+            css_out_button = ".reveal-modal-bg"
+            if (self.driver.is_element_visible(css_out_button)):
+                close_button = self.driver.find_element(css_out_button)
+                close_button.click()
             self.driver.click(css_line_j)
+
             if (self.driver.is_element_visible(css_button_popup)):
                 link_to_new_page = self.driver.get_attribute(
                     css_button_popup, "href")
@@ -472,6 +486,7 @@ class GeneanetScrapper():
             time_check += time_wait_between_2_check
             self.driver.sleep(time_wait_between_2_check)
             if (time_check > time_out):
+                file_download_path = f"Impossible de trouver les sources pour la pages {self.driver.current_url}"
                 print(
                     "\nUnable to found download button or releve collaboratif"
                     f" text for {last_name} {first_name} with css : {css_line_j}.")
@@ -508,6 +523,7 @@ class GeneanetScrapper():
                     src_acte = self.find_src_in_archive(
                         src_acte, last_name, first_name, css_line_j)
                 else:
+                    src_acte = f"Impossible de trouver les sources pour la pages {self.driver.current_url}"
                     print(f"\nUnable to get any further source of the acte of "
                           f"{last_name} {first_name} with css : {css_line_j}."
                           f"\nWe found didn't find this css {css_src_access}")
@@ -528,6 +544,7 @@ class GeneanetScrapper():
                             time_check += time_wait_between_2_check
                             self.driver.sleep(time_wait_between_2_check)
                             if (time_check > time_out):
+                                src_acte = f"Impossible de trouver les sources pour la pages {self.driver.current_url}"
                                 print(
                                     "\nUnable to found download button"
                                     f" text for {last_name} {first_name} with css : {css_line_j}.")
@@ -544,11 +561,12 @@ class GeneanetScrapper():
 
                                 src_acte_file_download_path = os.path.join(
                                     self.download_path, file_download)
-                                src_acte = f"TOMOVE({src_acte_file_download_path})" 
+                                src_acte = f"TOMOVE({src_acte_file_download_path})"
                         self.driver.close()
                         self.driver.switch_to.window(
                             self.driver.window_handles[1])
                     else:
+                        src_acte = f"Impossible de trouver les sources pour la pages {self.driver.current_url}"
                         print(f"\nUnable to get any the source of the acte of "
                               f"{last_name} {first_name} with css : {css_line_j}."
                               f"\nWe found neither this css"
@@ -669,10 +687,21 @@ class GeneanetScrapper():
         if (self.driver.is_element_visible(css_close_pop_up)):
             close_button = self.driver.find_element(css_close_pop_up)
             close_button.click()
+        css_out_button = ".reveal-modal-bg"
+        if (self.driver.is_element_visible(css_out_button)):
+            close_button = self.driver.find_element(css_out_button)
+            close_button.click()
 
         next_page_button = self.driver.find_element(css_click_on_next_page)
 
-        next_page_button.click()
+        try:
+            next_page_button.click()
+        except ValueError as e:
+            css_out_button = ".reveal-modal-bg"
+            if (self.driver.is_element_visible(css_out_button)):
+                close_button = self.driver.find_element(css_out_button)
+                close_button.click()
+            next_page_button.click()
         self.current_page_nbr += 1
 
         css_archive_toggle = "#categories_1-archives"
